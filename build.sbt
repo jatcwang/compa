@@ -15,10 +15,11 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
       "org.http4s"      %% "rho-core"          % Http4sRhoVersion,
-      "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
 
       "io.monix" %% "monix-eval" % MonixVersion,
-      "ch.qos.logback"  %  "logback-classic"     % LogbackVersion
+      "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
+
+      "org.scalatest" %% "scalatest" % "3.0.3" % Test,
     )
   )
 
