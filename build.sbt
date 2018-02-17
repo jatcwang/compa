@@ -1,4 +1,5 @@
 val Http4sVersion = "0.18.0"
+val Http4sRhoVersion = "0.18.0-M2"
 val Specs2Version = "4.0.2"
 val LogbackVersion = "1.2.3"
 val MonixVersion = "3.0.0-M3"
@@ -13,9 +14,10 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-blaze-server" % Http4sVersion,
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
+      "org.http4s"      %% "rho-core"          % Http4sRhoVersion,
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
 
-      "io.monix" %% "monix" % MonixVersion,
+      "io.monix" %% "monix-eval" % MonixVersion,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion
     )
   )
