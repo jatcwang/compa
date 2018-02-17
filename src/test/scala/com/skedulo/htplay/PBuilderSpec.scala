@@ -1,7 +1,7 @@
 package com.skedulo.htplay
 
 import cats.effect.IO
-import com.skedulo.htplay.paths.PBuilder
+import com.skedulo.htplay.paths.{PBuilder, QBuilder, QueryParam => Q}
 import org.http4s._
 import org.http4s.implicits._
 import org.scalatest.FreeSpec
@@ -25,6 +25,10 @@ class PBuilderSpec extends FreeSpec {
       matcher(req)
     }
 
+    "builds with path & query param" in {
+      val builder: QBuilder[String, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q.str("mystr")
+    }
+
   }
 
   class SomeClass() {
@@ -34,3 +38,12 @@ class PBuilderSpec extends FreeSpec {
     }
   }
 }
+
+
+/*
+empty
+?a=&b=
+
+multi param, possibly empty
+?a=&a=
+ */

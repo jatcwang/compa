@@ -1,6 +1,6 @@
 package com.skedulo.htplay.paths
 
-import org.http4s.{Request, Response}
+import org.http4s.{Query, Request, Response}
 import shapeless.{HList, HNil}
 import shapeless._
 import shapeless.ops.hlist.{Prepend, Tupler}
@@ -32,6 +32,12 @@ case class PBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
     val c = StringConverter(segment.parser)
     PBuilder(matchSegments :+ segment, converters :+ c)
   }
+
+  def :?[A](queryParam: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[Err, prepend.Out] = {
+    this.toQBuilder.withQueryParam(queryParam)(prepend)
+  }
+
+  private def toQBuilder: QBuilder[Err, Vars] = QBuilder(matchSegments, converters)
 
   def toMatcher[F[_], Tup](implicit toTuple: Generic.Aux[Tup, Vars], fromTraversable: FromTraversable[Vars]): (Tup => Response[F]) => Request[F] => Option[Response[F]] = {
     (cb: Tup => Response[F]) => (req: Request[F]) => {
@@ -91,6 +97,7 @@ object Converters {
 
 // Convert a string into A
 case class StringConverter[Err, A](override val converter: String => Either[Err, A]) extends Converters[String, Err, A]
+case class QueryStringConverter[Err, A](override val converter: Query => Either[Err, A]) extends Converters[Query, Err, A]
 case class RequestConverter[F[_], Err, A](override val converter: Request[F] => Either[Err, A]) extends Converters[Request[F], Err, A]
 
 /*
