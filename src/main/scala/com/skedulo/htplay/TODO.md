@@ -9,11 +9,11 @@
 
 I think we can make this configurable
 
+### Allow for streaming bodies into the function
+
 ## End-User friendliness
 
-### Collect errors?
-
-
+### Accumulate errors?
 
 ## Documentation and examples
 

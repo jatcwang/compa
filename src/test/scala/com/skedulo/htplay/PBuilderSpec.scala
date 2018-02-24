@@ -4,29 +4,26 @@ import cats.effect.IO
 import com.skedulo.htplay.paths.{PBuilder, QBuilder, QueryParam => Q}
 import org.http4s._
 import org.http4s.implicits._
-import org.scalatest.FreeSpec
+import org.scalatest.{FreeSpec, Matchers}
 import PBuilder._
 import monix.eval.Task
 import shapeless._
 
-class PBuilderSpec extends FreeSpec {
+class PBuilderSpec extends FreeSpec with Matchers {
 
-  //TODOO:
   "PBuilder" - {
-    "builds string path" in {
-      println(root / "asdf" / "asdfa")
-    }
-
-    "builds with path variables" in {
+    "parses with path variables" in {
       val builder: PBuilder[String, Int :: String :: HNil] = root / "asdf" / intVar / stringVar
-      val m: (((Int, String)) => Response[Task]) => Request[Task] => Option[Response[Task]] = builder.toMatcher[Task, (Int, String)]
-      val matcher = m((new SomeClass().lol _).tupled)
+      val matcher = builder.make[Task]
       val req = Request[Task](uri = Uri.fromString("https://google.com/asdf/12/world").right.get)
-      matcher(req)
+      matcher.processReq(req) shouldEqual Some(12 :: "world" :: HNil)
     }
 
-    "builds with path & query param" in {
+    "parses path & query param" in {
       val builder: QBuilder[String, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q.str("mystr")
+      val matcher = builder.make[Task]
+      val req = Request[Task](uri = Uri.fromString("https://google.com/asdf/12?myint=5&mystr=hello").right.get)
+      matcher.processReq(req) shouldEqual Some(12 :: 5 :: "hello" :: HNil)
     }
 
   }

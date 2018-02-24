@@ -1,17 +1,12 @@
 package com.skedulo.htplay.paths
 
-import org.http4s.{Request, Response}
-import shapeless.{HList, HNil}
-import shapeless._
-import shapeless.ops.hlist.{Prepend, Tupler}
 import cats.syntax.either._
-import com.skedulo.htplay.paths.Converters.{AnyConverter, ExistConverter}
-import monix.eval.Task
+import com.skedulo.htplay.paths.Converter.ExistConverter
+import shapeless.ops.hlist.Prepend
 import shapeless.ops.traversable.FromTraversable
+import shapeless.{HList, HNil, _}
 
 import scala.collection.{mutable => mut}
-import shapeless.syntax.std.traversable._
-
 import scala.language.higherKinds
 
 sealed trait QueryParam[Err, T]
@@ -41,6 +36,10 @@ case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
     // pass in the same implicit so compiler can prove that the return type
     // is the same (due to path-dependent types)
     withQueryParam(param)(prepend)
+  }
+
+  def make[F[_]](implicit t: FromTraversable[Vars]): Matcher[F, Vars] = {
+    Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
   }
 }
 
