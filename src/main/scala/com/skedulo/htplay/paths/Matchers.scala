@@ -12,7 +12,6 @@ import scala.language.higherKinds
 
 
 object Matchers {
-  type FromRequest[F[_], Err, A] = Request[F] => Either[Err, A]
 
   def makeMatcher[F[_], Err, Vars <: HList: FromTraversable](converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[Segment]) = {
     new Matcher[F, Vars] {

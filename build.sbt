@@ -6,10 +6,12 @@ val MonixVersion = "3.0.0-M3"
 
 lazy val root = (project in file("."))
   .settings(
+    addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4"),
     organization := "com.skedulo",
     name := "htplay",
     version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.12.4",
+    scalacOptions += "-language:higherKinds",
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-blaze-server" % Http4sVersion,
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
