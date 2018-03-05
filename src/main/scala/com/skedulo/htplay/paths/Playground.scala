@@ -19,7 +19,7 @@ object Playground {
     // better convertion to response
     filter.mapF { s: EitherT[F, ReqError, Response[F]] =>
       OptionT.apply(s.value.map {
-        case Left(UriNotMatched(path)) => Some(Response.notFound[F])
+        case Left(UriNotMatched) => Some(Response.notFound[F])
         case Left(InvalidRequest(d)) => Some(Response(Status.BadRequest))
         case Left(FilterError(e)) => Some(Response(Status.InternalServerError))
         case Right(r) => Some(r)
@@ -27,7 +27,6 @@ object Playground {
     }
   }
 
-  // delme
   type Fx[A, B] = FFF[Task, A, ReqError, B]
   val b: Fx[Request[Task], Int :: String :: HNil] = ???
   val c: Fx[Request[Task], Int] = ???
@@ -45,4 +44,5 @@ object Playground {
     // consume the result and produce another
     def |>[C](fx2: Fx[B, C]): Fx[Request[Task], C] = ???
   }
+
 }

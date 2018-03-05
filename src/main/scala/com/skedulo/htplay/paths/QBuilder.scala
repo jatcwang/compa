@@ -1,7 +1,11 @@
 package com.skedulo.htplay.paths
 
+import cats.Applicative
+import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
 import com.skedulo.htplay.paths.Converter.ExistConverter
+import com.skedulo.htplay.paths.Playground.FFF
+import org.http4s.Request
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.traversable.FromTraversable
 import shapeless.{HList, HNil, _}
@@ -16,12 +20,12 @@ case class SingleParam[Err, T](key: String, convert: String => Either[Err, T]) e
 case class MultiParam[Err, T](key: String, convert: Seq[String] => Either[Err, T]) extends QueryParam[Err, T]
 
 object QueryParam {
-  def int(key: String) = SingleParam[String, Int](key, str => Either.catchNonFatal(str.toInt).leftMap(_.getMessage))
-  def str(key: String) = SingleParam[String, String](key, str => Right(str))
+  def int(key: String) = SingleParam[ReqError, Int](key, str => Either.catchNonFatal(str.toInt).leftMap(e => InvalidRequest(e.getMessage)))
+  def str(key: String) = SingleParam[ReqError, String](key, str => Right(str))
 }
 
 //TODOO: make private
-case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) {
+case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[Err, Vars]{
 
   def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[Err, prepend.Out] = {
     val converter = QueryStringConverter(q => {
@@ -38,9 +42,23 @@ case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
     withQueryParam(param)(prepend)
   }
 
-  def make[F[_]](implicit t: FromTraversable[Vars]): Matcher[F, Vars] = {
-    Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
+  def prepend(paths: Vector[String]): QBuilder[Err, Vars] = {
+    this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
+  }
+
+  override def make[F[_] : Applicative](implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err]): FFF[F, Request[F], Err, Vars] = {
+    val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
+    Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
+      EitherT.fromEither[F](matcher.processReq(req))
+    }
   }
 }
 
+
+object QBuilder {
+
+  implicit def pathPrependable[Err, Vars <: HList]: PathPrependable[QBuilder[Err, Vars]] = new PathPrependable[QBuilder[Err, Vars]] {
+    override def prefixPaths(builder: QBuilder[Err, Vars], paths: Vector[String]): QBuilder[Err, Vars] = builder.prepend(paths)
+  }
+}
 

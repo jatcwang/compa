@@ -1,29 +1,34 @@
 package com.skedulo.htplay
 
 import cats.effect.IO
-import com.skedulo.htplay.paths.{PBuilder, QBuilder, QueryParam => Q}
+import com.skedulo.htplay.paths.{PBuilder, QBuilder, ReqError, QueryParam => Q}
 import org.http4s._
 import org.http4s.implicits._
-import org.scalatest.{FreeSpec, Matchers}
+import org.scalatest.{AsyncFreeSpec, Matchers}
 import PBuilder._
 import monix.eval.Task
 import shapeless._
+import monix.execution.Scheduler.Implicits.global
 
-class PBuilderSpec extends FreeSpec with Matchers {
+class PBuilderSpec extends AsyncFreeSpec with Matchers {
 
   "PBuilder" - {
     "parses with path variables" in {
-      val builder: PBuilder[String, Int :: String :: HNil] = root / "asdf" / intVar / stringVar
+      val builder: PBuilder[ReqError, Int :: String :: HNil] = root / "asdf" / intVar / stringVar
       val matcher = builder.make[Task]
       val req = Request[Task](uri = Uri.fromString("https://google.com/asdf/12/world").right.get)
-      matcher.processReq(req) shouldEqual Some(12 :: "world" :: HNil)
+      matcher.run(req).value.map { res =>
+        res shouldEqual Right(12 :: "world" :: HNil)
+      }.runAsync
     }
 
     "parses path & query param" in {
-      val builder: QBuilder[String, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q.str("mystr")
+      val builder: QBuilder[ReqError, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q.str("mystr")
       val matcher = builder.make[Task]
       val req = Request[Task](uri = Uri.fromString("https://google.com/asdf/12?myint=5&mystr=hello").right.get)
-      matcher.processReq(req) shouldEqual Some(12 :: 5 :: "hello" :: HNil)
+      matcher.run(req).value.map { res =>
+        res shouldEqual Right(12 :: 5 :: "hello" :: HNil)
+      }.runAsync
     }
 
   }

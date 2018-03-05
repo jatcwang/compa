@@ -13,9 +13,9 @@ import scala.language.higherKinds
 
 object Matchers {
 
-  def makeMatcher[F[_], Err, Vars <: HList: FromTraversable](converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[Segment]) = {
-    new Matcher[F, Vars] {
-      override def processReq(req: Request[F]): Option[Vars] = {
+  def makeMatcher[F[_], Err, Vars <: HList: FromTraversable](converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[Segment])(implicit E: HasUriNotMatched[Err]) = {
+    new Matcher[F, Err, Vars] {
+      override def processReq(req: Request[F]): Either[Err, Vars] = {
         val thisPathSegments = req.uri.path.split('/').filter(_.nonEmpty)
         if (thisPathSegments.length == matchPathSegments.length) {
           var idx = 0
@@ -55,18 +55,18 @@ object Matchers {
               processedValues += convResult
             }
             val parseResult = processedValues.toHList[Vars].get
-            Some(parseResult)
+            Right(parseResult)
           }
-          else None
+          else Left(E.uriNotMatched)
         }
         else {
-          None
+          Left(E.uriNotMatched)
         }
       }
     }
   }
 }
 
-trait Matcher[F[_], Vars <: HList] {
-  def processReq(req: Request[F]): Option[Vars]
+trait Matcher[F[_], Err, Vars <: HList] {
+  def processReq(req: Request[F]): Either[Err, Vars]
 }

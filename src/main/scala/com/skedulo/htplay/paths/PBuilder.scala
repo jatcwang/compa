@@ -1,11 +1,14 @@
 package com.skedulo.htplay.paths
 
+import cats.Applicative
+import cats.data.{EitherT, Kleisli}
 import org.http4s.{Query, Request, Response}
 import shapeless.{HList, HNil}
 import shapeless._
 import shapeless.ops.hlist.{Prepend, Tupler}
 import cats.syntax.either._
 import com.skedulo.htplay.paths.Converter.{AnyConverter, ExistConverter}
+import com.skedulo.htplay.paths.Playground.FFF
 import shapeless.ops.traversable.FromTraversable
 
 import scala.collection.{mutable => mut}
@@ -21,8 +24,18 @@ case class LiteralSegment(str: String) extends Segment
 //TODOO: make you able to pass a name
 case class PathVarSegment[Err, A](parser: String => Either[Err, A]) extends Segment
 
+// Can prepend some paths
+trait PathPrependable[Builder] {
+  def prefixPaths(builder: Builder, paths: Vector[String]): Builder
+}
+
+trait SuperBuilder[Err, Vars <: HList] {
+
+  def make[F[_]: Applicative](implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err]): FFF[F, Request[F], Err, Vars]
+}
+
 //TODOO: make private
-case class PBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) {
+case class PBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[Err, Vars]{
 
   def /(segment: String): PBuilder[Err, Vars] = {
     PBuilder[Err, Vars](matchSegments :+ LiteralSegment(segment), converters)
@@ -39,20 +52,30 @@ case class PBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
 
   private def toQBuilder: QBuilder[Err, Vars] = QBuilder(matchSegments, converters)
 
-  def make[F[_]](implicit t: FromTraversable[Vars]): Matcher[F, Vars] = {
-    Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
+  def prepend(paths: Vector[String]): PBuilder[Err, Vars] = {
+    this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
   }
 
+  override def make[F[_]: Applicative](implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err]): FFF[F, Request[F], Err, Vars] = {
+    val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
+    Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
+      EitherT.fromEither[F](matcher.processReq(req))
+    }
+  }
 }
 
 object PBuilder {
-  val root: PBuilder[String, HNil] = PBuilder(
+  val root: PBuilder[ReqError, HNil] = PBuilder(
     matchSegments = Vector.empty,
     converters = Vector.empty
   )
 
-  val intVar: PathVarSegment[String, Int] = PathVarSegment(str => Either.catchNonFatal(str.toInt).leftMap(_.getMessage))
-  val stringVar: PathVarSegment[String, String] = PathVarSegment(str => Right(str))
+  val intVar: PathVarSegment[ReqError, Int] = PathVarSegment(str => Either.catchNonFatal(str.toInt).leftMap(e => InvalidRequest(e.getMessage)))
+  val stringVar: PathVarSegment[ReqError, String] = PathVarSegment(str => Right(str))
+
+  implicit def pathPrependable[Err, Vars <: HList]: PathPrependable[PBuilder[Err, Vars]] = new PathPrependable[PBuilder[Err, Vars]] {
+    override def prefixPaths(builder: PBuilder[Err, Vars], paths: Vector[String]): PBuilder[Err, Vars] = builder.prepend(paths)
+  }
 }
 
 sealed trait Converter[In, Err, A] {
