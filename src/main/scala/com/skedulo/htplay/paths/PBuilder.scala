@@ -29,34 +29,31 @@ trait PathPrependable[Builder] {
   def prefixPaths(builder: Builder, paths: Vector[String]): Builder
 }
 
-trait SuperBuilder[Err, Vars <: HList] {
-
-  def make[F[_]: Applicative](implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err]): FFF[F, Request[F], Err, Vars]
+trait SuperBuilder[F[_], Err, Vars <: HList] {
+  def make(implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars]
 }
 
 //TODOO: make private
-case class PBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[Err, Vars]{
+case class PBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[F, Err, Vars]{
 
-  def /(segment: String): PBuilder[Err, Vars] = {
-    PBuilder[Err, Vars](matchSegments :+ LiteralSegment(segment), converters)
+  def /(segment: String): PBuilder[F, Err, Vars] = {
+    PBuilder[F, Err, Vars](matchSegments :+ LiteralSegment(segment), converters)
   }
 
-  def /[A](segment: PathVarSegment[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): PBuilder[Err, prepend.Out] = {
+  def /[A](segment: PathVarSegment[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): PBuilder[F, Err, prepend.Out] = {
     val c = StringConverter(segment.parser)
     PBuilder(matchSegments :+ segment, converters :+ c)
   }
 
-  def :?[A](queryParam: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[Err, prepend.Out] = {
-    this.toQBuilder.withQueryParam(queryParam)(prepend)
+  def :?[A](queryParam: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
+    QBuilder[F, Err, Vars](matchSegments, converters).withQueryParam(queryParam)(prepend)
   }
 
-  private def toQBuilder: QBuilder[Err, Vars] = QBuilder(matchSegments, converters)
-
-  def prepend(paths: Vector[String]): PBuilder[Err, Vars] = {
+  def prepend(paths: Vector[String]): PBuilder[F, Err, Vars] = {
     this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
   }
 
-  override def make[F[_]: Applicative](implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err]): FFF[F, Request[F], Err, Vars] = {
+  override def make(implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
     val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
     Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
       EitherT.fromEither[F](matcher.processReq(req))
@@ -65,7 +62,7 @@ case class PBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
 }
 
 object PBuilder {
-  val root: PBuilder[ReqError, HNil] = PBuilder(
+  def rootWith[F[_]]: PBuilder[F, ReqError, HNil] = PBuilder[F, ReqError, HNil](
     matchSegments = Vector.empty,
     converters = Vector.empty
   )
@@ -73,8 +70,8 @@ object PBuilder {
   val intVar: PathVarSegment[ReqError, Int] = PathVarSegment(str => Either.catchNonFatal(str.toInt).leftMap(e => InvalidRequest(e.getMessage)))
   val stringVar: PathVarSegment[ReqError, String] = PathVarSegment(str => Right(str))
 
-  implicit def pathPrependable[Err, Vars <: HList]: PathPrependable[PBuilder[Err, Vars]] = new PathPrependable[PBuilder[Err, Vars]] {
-    override def prefixPaths(builder: PBuilder[Err, Vars], paths: Vector[String]): PBuilder[Err, Vars] = builder.prepend(paths)
+  implicit def pathPrependable[F[_], Err, Vars <: HList]: PathPrependable[PBuilder[F, Err, Vars]] = new PathPrependable[PBuilder[F, Err, Vars]] {
+    override def prefixPaths(builder: PBuilder[F, Err, Vars], paths: Vector[String]): PBuilder[F, Err, Vars] = builder.prepend(paths)
   }
 }
 

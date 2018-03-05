@@ -12,10 +12,12 @@ import monix.execution.Scheduler.Implicits.global
 
 class PBuilderSpec extends AsyncFreeSpec with Matchers {
 
+  val root = rootWith[Task]
+
   "PBuilder" - {
     "parses with path variables" in {
-      val builder: PBuilder[ReqError, Int :: String :: HNil] = root / "asdf" / intVar / stringVar
-      val matcher = builder.make[Task]
+      val builder: PBuilder[Task, ReqError, Int :: String :: HNil] = root / "asdf" / intVar / stringVar
+      val matcher = builder.make
       val req = Request[Task](uri = Uri.fromString("https://google.com/asdf/12/world").right.get)
       matcher.run(req).value.map { res =>
         res shouldEqual Right(12 :: "world" :: HNil)
@@ -23,8 +25,8 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     }
 
     "parses path & query param" in {
-      val builder: QBuilder[ReqError, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q.str("mystr")
-      val matcher = builder.make[Task]
+      val builder: QBuilder[Task, ReqError, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q.str("mystr")
+      val matcher = builder.make
       val req = Request[Task](uri = Uri.fromString("https://google.com/asdf/12?myint=5&mystr=hello").right.get)
       matcher.run(req).value.map { res =>
         res shouldEqual Right(12 :: 5 :: "hello" :: HNil)

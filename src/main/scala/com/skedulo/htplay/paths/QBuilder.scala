@@ -25,9 +25,9 @@ object QueryParam {
 }
 
 //TODOO: make private
-case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[Err, Vars]{
+case class QBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[F, Err, Vars]{
 
-  def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[Err, prepend.Out] = {
+  def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
     val converter = QueryStringConverter(q => {
       //TODOO: handle empty
       val paramValue = q.params.get(param.key).get
@@ -36,17 +36,17 @@ case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
     QBuilder(matchSegments, converters :+ converter)
   }
 
-  def &[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[Err, prepend.Out] = {
+  def &[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
     // pass in the same implicit so compiler can prove that the return type
     // is the same (due to path-dependent types)
     withQueryParam(param)(prepend)
   }
 
-  def prepend(paths: Vector[String]): QBuilder[Err, Vars] = {
+  def prepend(paths: Vector[String]): QBuilder[F, Err, Vars] = {
     this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
   }
 
-  override def make[F[_] : Applicative](implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err]): FFF[F, Request[F], Err, Vars] = {
+  override def make(implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
     val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
     Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
       EitherT.fromEither[F](matcher.processReq(req))
@@ -57,8 +57,8 @@ case class QBuilder[Err, Vars <: HList](matchSegments: Vector[Segment], converte
 
 object QBuilder {
 
-  implicit def pathPrependable[Err, Vars <: HList]: PathPrependable[QBuilder[Err, Vars]] = new PathPrependable[QBuilder[Err, Vars]] {
-    override def prefixPaths(builder: QBuilder[Err, Vars], paths: Vector[String]): QBuilder[Err, Vars] = builder.prepend(paths)
+  implicit def pathPrependable[F[_], Err, Vars <: HList]: PathPrependable[QBuilder[F, Err, Vars]] = new PathPrependable[QBuilder[F, Err, Vars]] {
+    override def prefixPaths(builder: QBuilder[F, Err, Vars], paths: Vector[String]): QBuilder[F, Err, Vars] = builder.prepend(paths)
   }
 }
 
