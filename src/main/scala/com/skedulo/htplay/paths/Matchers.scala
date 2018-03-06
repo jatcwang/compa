@@ -2,8 +2,7 @@ package com.skedulo.htplay.paths
 
 import com.skedulo.htplay.paths.Converter.{AnyConverter, ExistConverter}
 import org.http4s.{Request, Response}
-import shapeless.{Generic, HList}
-import shapeless.ops.traversable.FromTraversable
+import shapeless.{Generic, HList, HNil}
 import shapeless.syntax.std.traversable._
 
 import scala.collection.{mutable => mut}
@@ -13,7 +12,7 @@ import scala.language.higherKinds
 
 object Matchers {
 
-  def makeMatcher[F[_], Err, Vars <: HList: FromTraversable](converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[Segment])(implicit E: HasUriNotMatched[Err]) = {
+  def makeMatcher[F[_], Err, Vars <: HList](converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[Segment])(implicit E: HasUriNotMatched[Err]) = {
     new Matcher[F, Err, Vars] {
       override def processReq(req: Request[F]): Either[Err, Vars] = {
         val thisPathSegments = req.uri.path.split('/').filter(_.nonEmpty)
@@ -54,8 +53,11 @@ object Matchers {
               }
               processedValues += convResult
             }
-            val parseResult = processedValues.toHList[Vars].get
-            Right(parseResult)
+            var res: HList = HNil
+            processedValues.reverseIterator.foreach { thisRes =>
+              res = thisRes :: res
+            }
+            Right(res.asInstanceOf[Vars])
           }
           else Left(E.uriNotMatched)
         }

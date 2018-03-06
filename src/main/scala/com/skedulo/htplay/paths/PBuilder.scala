@@ -1,6 +1,6 @@
 package com.skedulo.htplay.paths
 
-import cats.Applicative
+import cats.{Applicative, Monad}
 import cats.data.{EitherT, Kleisli}
 import org.http4s.{Query, Request, Response}
 import shapeless.{HList, HNil}
@@ -9,10 +9,6 @@ import shapeless.ops.hlist.{Prepend, Tupler}
 import cats.syntax.either._
 import com.skedulo.htplay.paths.Converter.{AnyConverter, ExistConverter}
 import com.skedulo.htplay.paths.Playground.FFF
-import shapeless.ops.traversable.FromTraversable
-
-import scala.collection.{mutable => mut}
-import shapeless.syntax.std.traversable._
 
 import scala.language.higherKinds
 
@@ -29,12 +25,31 @@ trait PathPrependable[Builder] {
   def prefixPaths(builder: Builder, paths: Vector[String]): Builder
 }
 
-trait SuperBuilder[F[_], Err, Vars <: HList] {
-  def make(implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars]
+trait SuperBuilder[F[_], Err, Res <: HList] { self =>
+  protected def matchSegments: Vector[Segment]
+  protected def converters: Vector[ExistConverter[Err]]
+
+  def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Res]
+
+    def |[A](fx: FFF[F, Request[F], Err, A])(implicit prepend: Prepend[Res, A :: HNil], F: Monad[F]): PathPartial[F, Err, prepend.Out] = {
+    val newPost = (req: Request[F]) => {
+      Kleisli[EitherT[F, Err, ?], Res, prepend.Out] { res =>
+        val t: EitherT[F, Err, A] = fx.run(req)
+        t.map(f => prepend(res, f :: HNil))
+      }
+    }
+
+    new PathPartial[F, Err, prepend.Out] {
+      override protected type BuilderVars = Res
+      override protected val builder: SuperBuilder[F, Err, BuilderVars] = self
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, prepend.Out] = newPost
+    }
+
+  }
 }
 
 //TODOO: make private
-case class PBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[F, Err, Vars]{
+case class PBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], override val converters: Vector[ExistConverter[Err]]) extends SuperBuilder[F, Err, Vars]{
 
   def /(segment: String): PBuilder[F, Err, Vars] = {
     PBuilder[F, Err, Vars](matchSegments :+ LiteralSegment(segment), converters)
@@ -53,7 +68,7 @@ case class PBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], co
     this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
   }
 
-  override def make(implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
+  override def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
     val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
     Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
       EitherT.fromEither[F](matcher.processReq(req))

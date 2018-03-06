@@ -7,7 +7,6 @@ import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.Request
 import shapeless.ops.hlist.Prepend
-import shapeless.ops.traversable.FromTraversable
 import shapeless.{HList, HNil, _}
 
 import scala.collection.{mutable => mut}
@@ -46,7 +45,7 @@ case class QBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], co
     this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
   }
 
-  override def make(implicit trav: FromTraversable[Vars], E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
+  override def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
     val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
     Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
       EitherT.fromEither[F](matcher.processReq(req))

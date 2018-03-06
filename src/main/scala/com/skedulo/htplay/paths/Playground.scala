@@ -27,22 +27,4 @@ object Playground {
     }
   }
 
-  type Fx[A, B] = FFF[Task, A, ReqError, B]
-  val b: Fx[Request[Task], Int :: String :: HNil] = ???
-  val c: Fx[Request[Task], Int] = ???
-
-  val d: Fx[Request[Task], Int :: String :: Int :: Int :: HNil] = b | c | c
-
-  val e: Fx[Int :: String :: HNil, Int] = ???
-
-  val f: Fx[Request[Task], Int] = b |> e
-
-  implicit final class FxExtensions[B <: HList](fx: Fx[Request[Task], B]) {
-    // take the request and add more to hlist result |
-    def |[C](fx2: Fx[Request[Task], C])(implicit prepend: Prepend[B, C :: HNil]): Fx[Request[Task], prepend.Out] = ???
-
-    // consume the result and produce another
-    def |>[C](fx2: Fx[B, C]): Fx[Request[Task], C] = ???
-  }
-
 }
