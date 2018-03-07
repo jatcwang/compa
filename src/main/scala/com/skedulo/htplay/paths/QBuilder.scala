@@ -9,7 +9,6 @@ import org.http4s.Request
 import shapeless.ops.hlist.Prepend
 import shapeless.{HList, HNil, _}
 
-import scala.collection.{mutable => mut}
 import scala.language.higherKinds
 
 sealed trait QueryParam[Err, T]

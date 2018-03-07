@@ -1,7 +1,7 @@
 package com.skedulo.htplay
 
 import cats.effect.IO
-import com.skedulo.htplay.paths.{InvalidRequest, PBuilder, QBuilder, ReqError, QueryParam => Q}
+import com.skedulo.htplay.paths.{AsHList, InvalidRequest, PBuilder, QBuilder, ReqError, QueryParam => Q}
 import org.http4s._
 import org.http4s.implicits._
 import org.scalatest.{AsyncFreeSpec, Matchers}
@@ -55,8 +55,16 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     }
 
     "with request postprocessing pipeline (depending on previous results)" in {
-//      val path = root / "asdf" / intVar / intVar |> ()
-      pending
+      val path = root / "asdf" / intVar / intVar |> makeCoordinate |>> { rect =>
+        Task.delay {
+          assert(rect == Rectangle(2, 3))
+          Response(Status.Ok)
+        }
+      }
+      val req = Request[Task](uri = Uri.fromString("https://hello.com/asdf/2/3").right.get)
+      path.make.run(req).value.map { res =>
+        res shouldEqual Right(Response(Status.Ok))
+      }.runAsync
     }
 
     def auth: FFF[Task, Request[Task], ReqError, User] = {
@@ -71,9 +79,16 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
       }
     }
 
+    def makeCoordinate: FFF[Task, Int :: Int :: HNil, ReqError, Rectangle]= {
+      Kleisli[EitherT[Task, ReqError, ?], Int :: Int:: HNil, Rectangle] { case (w :: h :: HNil) =>
+          EitherT.pure(Rectangle(w, h))
+      }
+    }
+
   }
 
   case class User(name: String)
+  case class Rectangle(width: Int, height: Int)
 
 }
 

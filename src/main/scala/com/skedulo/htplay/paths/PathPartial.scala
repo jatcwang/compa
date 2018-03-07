@@ -9,11 +9,11 @@ import shapeless.ops.hlist.Prepend
 
 //TODOO: make sealed or package private
 trait PathPartial[F[_], Err, Res] { p =>
-  protected type BuilderVars <: HList
+  protected type BuilderVars
   protected val builder: SuperBuilder[F, Err, BuilderVars]
   protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Res]
 
-  def |[A: Typeable, ThisRes <: HList](fx: FFF[F, Request[F], Err, A])(implicit prepend: Prepend[ThisRes, A :: HNil], F: Monad[F], equiv: Res =:= ThisRes): PathPartial[F, Err, prepend.Out] = {
+  def |[A, ThisRes <: HList](fx: FFF[F, Request[F], Err, A])(implicit prepend: Prepend[ThisRes, A :: HNil], F: Monad[F], equiv: Res =:= ThisRes): PathPartial[F, Err, prepend.Out] = {
     val newPost = (req: Request[F]) => {
       val t: EitherT[F, Err, A] = fx.run(req)
       postUriMatchProcessing(req).andThen(vars => t.map(f => prepend(equiv(vars), f :: HNil)))
@@ -53,7 +53,7 @@ trait PathPartial[F[_], Err, Res] { p =>
 }
 
 sealed trait PathComplete[F[_], Err] {
-  protected type BuilderVars <: HList
+  protected type BuilderVars
   protected val builder: SuperBuilder[F, Err, BuilderVars]
   protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Response[F]]
 

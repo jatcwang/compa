@@ -1,14 +1,11 @@
 package com.skedulo.htplay.paths
 
 import com.skedulo.htplay.paths.Converter.{AnyConverter, ExistConverter}
-import org.http4s.{Request, Response}
-import shapeless.{Generic, HList, HNil}
-import shapeless.syntax.std.traversable._
+import org.http4s.Request
+import shapeless.{HList, HNil}
 
 import scala.collection.{mutable => mut}
 import scala.language.higherKinds
-
-
 
 object Matchers {
 
