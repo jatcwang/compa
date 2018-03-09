@@ -9,15 +9,15 @@ import shapeless.ops.function.{FnFromProduct, FnToProduct}
 import shapeless.ops.hlist.Prepend
 
 //TODOO: make sealed or package private
-trait PathPartial[F[_], Err, Res] { p =>
+trait PathPartial[F[_], Err, Res <: HList] { p =>
   protected type BuilderVars
   protected val builder: SuperBuilder[F, Err, BuilderVars]
   protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Res]
 
-  def |[A, ThisRes <: HList](fx: FFF[F, Request[F], Err, A])(implicit prepend: Prepend[ThisRes, A :: HNil], F: Monad[F], equiv: Res =:= ThisRes): PathPartial[F, Err, prepend.Out] = {
+  def |[A](fx: FFF[F, Request[F], Err, A])(implicit prepend: Prepend[Res, A :: HNil], F: Monad[F]): PathPartial[F, Err, prepend.Out] = {
     val newPost = (req: Request[F]) => {
       val t: EitherT[F, Err, A] = fx.run(req)
-      postUriMatchProcessing(req).andThen(vars => t.map(f => prepend(equiv(vars), f :: HNil)))
+      postUriMatchProcessing(req).andThen(vars => t.map(f => prepend(vars, f :: HNil)))
     }
 
     new PathPartial[F, Err, prepend.Out] {
@@ -29,14 +29,14 @@ trait PathPartial[F[_], Err, Res] { p =>
 
   }
 
-  def processCurrent[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F]): PathPartial[F, Err, NewRes] = {
+  def processCurrent[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F], asHList: AsHList[NewRes]): PathPartial[F, Err, asHList.Out] = {
     val newPost = (req: Request[F]) => {
-      postUriMatchProcessing(req).andThen(vars => fx.run(vars))
+      postUriMatchProcessing(req).andThen(vars => fx.run(vars).map(asHList(_)))
     }
-    new PathPartial[F, Err, NewRes] {
+    new PathPartial[F, Err, asHList.Out] {
       override protected type BuilderVars = p.BuilderVars
       override protected val builder: SuperBuilder[F, Err, BuilderVars] = p.builder
-      override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, NewRes] = newPost
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, asHList.Out] = newPost
     }
   }
 
@@ -51,13 +51,12 @@ trait PathPartial[F[_], Err, Res] { p =>
     }
   }
 
-  //TODOO: rename ThisRes to Res0
-  def |>[Func, ThisRes <: HList](f: Func)(implicit fnToProduct: FnToProduct.Aux[Func, ThisRes => F[Response[F]]], equiv: Res =:= ThisRes, F: Monad[F]): PathComplete[F, Err] = {
+  def |>[Func](f: Func)(implicit fnToProduct: FnToProduct.Aux[Func, Res => F[Response[F]]], F: Monad[F]): PathComplete[F, Err] = {
     new PathComplete[F, Err] {
       override protected type BuilderVars = p.BuilderVars
       override protected val builder: SuperBuilder[F, Err, BuilderVars] = p.builder
       override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Response[F]] = req => {
-        p.postUriMatchProcessing(req).andThen(res => EitherT.liftF[F, Err, Response[F]](fnToProduct(f)(equiv(res))))
+        p.postUriMatchProcessing(req).andThen(res => EitherT.liftF[F, Err, Response[F]](fnToProduct(f)(res)))
       }
     }
   }

@@ -69,7 +69,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     "with request postprocessing pipeline (depending on previous results)" in {
       val path = (root / "asdf" / intVar / intVar processCurrent makeCoordinate) |>> { rect =>
         Task.delay {
-          assert(rect == Rectangle(2, 3))
+          assert(rect == Rectangle(2, 3) :: HNil)
           Response(Status.Ok)
         }
       }
