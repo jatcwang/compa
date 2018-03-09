@@ -5,6 +5,7 @@ import cats.{Applicative, Monad}
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.{Request, Response}
 import shapeless._
+import shapeless.ops.function.{FnFromProduct, FnToProduct}
 import shapeless.ops.hlist.Prepend
 
 //TODOO: make sealed or package private
@@ -28,7 +29,7 @@ trait PathPartial[F[_], Err, Res] { p =>
 
   }
 
-  def |>[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F]): PathPartial[F, Err, NewRes] = {
+  def processCurrent[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F]): PathPartial[F, Err, NewRes] = {
     val newPost = (req: Request[F]) => {
       postUriMatchProcessing(req).andThen(vars => fx.run(vars))
     }
@@ -46,6 +47,17 @@ trait PathPartial[F[_], Err, Res] { p =>
       override protected val builder: SuperBuilder[F, Err, BuilderVars] = p.builder
       override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Response[F]] = req => {
         p.postUriMatchProcessing(req).andThen(res => EitherT.liftF[F, Err, Response[F]](f(res)))
+      }
+    }
+  }
+
+  //TODOO: rename ThisRes to Res0
+  def |>[Func, ThisRes <: HList](f: Func)(implicit fnToProduct: FnToProduct.Aux[Func, ThisRes => F[Response[F]]], equiv: Res =:= ThisRes, F: Monad[F]): PathComplete[F, Err] = {
+    new PathComplete[F, Err] {
+      override protected type BuilderVars = p.BuilderVars
+      override protected val builder: SuperBuilder[F, Err, BuilderVars] = p.builder
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Response[F]] = req => {
+        p.postUriMatchProcessing(req).andThen(res => EitherT.liftF[F, Err, Response[F]](fnToProduct(f)(equiv(res))))
       }
     }
   }

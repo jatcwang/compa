@@ -32,7 +32,7 @@ trait SuperBuilder[F[_], Err, Res] { self =>
   }
 
   //TODOO: need to improve UX when Res is HList
-  def |>[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F]): PathPartial[F, Err, NewRes] = {
+  def processCurrent[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F]): PathPartial[F, Err, NewRes] = {
     new PathPartial[F, Err, NewRes] {
       override protected type BuilderVars = Res
       override protected val builder: SuperBuilder[F, Err, BuilderVars] = self
