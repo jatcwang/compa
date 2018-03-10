@@ -20,12 +20,6 @@ case class LiteralSegment(str: String) extends Segment
 //TODOO: make you able to pass a name
 case class PathVarSegment[Err, A](parser: String => Either[Err, A]) extends Segment
 
-// Can prepend some paths
-//TODOO: can delete this and put into SuperBuilder
-trait PathPrependable[Builder] {
-  def prefixPaths(builder: Builder, paths: Vector[String]): Builder
-}
-
 //TODOO: make private
 case class PBuilder[F[_], Err, Vars <: HList](
   matchSegments: Vector[Segment],
@@ -56,6 +50,10 @@ case class PBuilder[F[_], Err, Vars <: HList](
       EitherT.fromEither[F](matcher.processReq(req))
     }
   }
+
+  override def prefix(segments: Vector[String]): PBuilder[F, Err, Vars] = {
+    PBuilder(segments.map(LiteralSegment) ++ matchSegments, converters)
+  }
 }
 
 object PBuilder {
@@ -67,11 +65,6 @@ object PBuilder {
   )
   val stringVar: PathVarSegment[ReqError, String] = PathVarSegment(str => Right(str))
 
-  implicit def pathPrependable[F[_], Err, Vars <: HList]: PathPrependable[PBuilder[F, Err, Vars]] =
-    new PathPrependable[PBuilder[F, Err, Vars]] {
-      override def prefixPaths(builder: PBuilder[F, Err, Vars], paths: Vector[String]): PBuilder[F, Err, Vars] =
-        builder.prepend(paths)
-    }
 }
 
 sealed trait Converter[In, Err, A] {

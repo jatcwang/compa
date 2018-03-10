@@ -4,23 +4,25 @@ import cats.data.{EitherT, Kleisli}
 import cats.{Applicative, Monad}
 import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
-import org.http4s.Request
+import org.http4s.{Request, Response}
+import shapeless.ops.function.FnToProduct
 import shapeless.{HNil, _}
 import shapeless.ops.hlist.Prepend
 
-trait SuperBuilder[F[_], Err, Res] { self =>
+trait SuperBuilder[F[_], Err, Res <: HList] { self =>
+  //TODOO: need these?
   protected def matchSegments: Vector[Segment]
   protected def converters: Vector[ExistConverter[Err]]
 
   def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Res]
 
-  def |[A, ResAsHList <: HList](
+  def |[A](
     fx: FFF[F, Request[F], Err, A]
-  )(implicit asHList: AsHList.Aux[Res, ResAsHList], prepend: Prepend[ResAsHList, A :: HNil], F: Monad[F]): PathPartial[F, Err, prepend.Out] = {
+  )(implicit prepend: Prepend[Res, A :: HNil], F: Monad[F]): PathPartial[F, Err, prepend.Out] = {
     val newPost = (req: Request[F]) => {
       Kleisli[EitherT[F, Err, ?], Res, prepend.Out] { res =>
         val t: EitherT[F, Err, A] = fx.run(req)
-        t.map(f => prepend(asHList(res), f :: HNil))
+        t.map(f => prepend(res, f :: HNil))
       }
     }
 
@@ -40,6 +42,32 @@ trait SuperBuilder[F[_], Err, Res] { self =>
     }
   }
 
+  //TODOO: take validated inputs (e.g. can't contain "/" in each string)
+  def prefix(segments: Vector[String]): SuperBuilder[F, Err, Res]
+
+  // Binds it to a function to return a Response
+  def |>>(f: Res => F[Response[F]])(implicit F: Monad[F]): PathComplete[F, Err] = {
+    new PathComplete[F, Err] {
+      override protected type BuilderVars = Res
+      override protected val builder: SuperBuilder[F, Err, Res] = self
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, Res, Err, Response[F]] = req => {
+        Kleisli[EitherT[F, Err, ?], Res, Response[F]](res => EitherT.liftF[F, Err, Response[F]](f(res)))
+      }
+    }
+  }
+
+  def |>[Func](f: Func)(implicit fnToProduct: FnToProduct.Aux[Func, Res => F[Response[F]]], F: Monad[F]): PathComplete[F, Err] = {
+    val hlistFunc = fnToProduct(f)
+    new PathComplete[F, Err] {
+      override protected type BuilderVars = Res
+      override protected val builder: SuperBuilder[F, Err, Res] = self
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, Res, Err, Response[F]] = req => {
+        Kleisli[EitherT[F, Err, ?], Res, Response[F]](res => {
+          EitherT.liftF[F, Err, Response[F]](hlistFunc(res))
+        })
+      }
+    }
+  }
 
 }
 

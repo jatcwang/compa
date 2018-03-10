@@ -50,13 +50,14 @@ case class QBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], co
       EitherT.fromEither[F](matcher.processReq(req))
     }
   }
+
+  override def prefix(segments: Vector[String]): PBuilder[F, Err, Vars] = {
+    PBuilder(segments.map(LiteralSegment) ++ matchSegments, converters)
+  }
 }
 
 
 object QBuilder {
 
-  implicit def pathPrependable[F[_], Err, Vars <: HList]: PathPrependable[QBuilder[F, Err, Vars]] = new PathPrependable[QBuilder[F, Err, Vars]] {
-    override def prefixPaths(builder: QBuilder[F, Err, Vars], paths: Vector[String]): QBuilder[F, Err, Vars] = builder.prepend(paths)
-  }
 }
 

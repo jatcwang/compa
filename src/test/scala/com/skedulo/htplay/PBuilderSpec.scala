@@ -83,10 +83,10 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
         .runAsync
     }
 
-    "sugar syntax for binding to request handlers defined in the form of functions" in {
+    "sugar syntax for binding to request handlers that are functions" in {
       val path = root / "asdf" / intVar | auth |> (myRequestHandler _)
       val req = Request[Task](
-        uri     = Uri.fromString("https://hello.com/asdf/12?myint=5&mystr=hello").right.get,
+        uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
         headers = Headers(Header("Authorization", "john"))
       )
       path.make
