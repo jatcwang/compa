@@ -5,7 +5,7 @@ import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
 import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
-import org.http4s.Request
+import org.http4s.{Method, Request}
 import shapeless.ops.hlist.Prepend
 import shapeless.{HList, HNil, _}
 
@@ -23,7 +23,11 @@ object QueryParam {
 }
 
 //TODOO: make private
-case class QBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], converters: Vector[ExistConverter[Err]]) extends SuperBuilder[F, Err, Vars]{
+case class QBuilder[F[_], Err, Vars <: HList](
+  override val method: Method,
+  override val matchSegments: Vector[Segment],
+  override val converters: Vector[ExistConverter[Err]]
+) extends SuperBuilder[F, Err, Vars]{
 
   def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
     val converter = QueryStringConverter(q => {
@@ -31,7 +35,7 @@ case class QBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], co
       val paramValue = q.params.get(param.key).get
       param.convert(paramValue)
     })
-    QBuilder(matchSegments, converters :+ converter)
+    this.copy(converters = converters :+ converter)
   }
 
   def &[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
@@ -40,19 +44,15 @@ case class QBuilder[F[_], Err, Vars <: HList](matchSegments: Vector[Segment], co
     withQueryParam(param)(prepend)
   }
 
-  def prepend(paths: Vector[String]): QBuilder[F, Err, Vars] = {
-    this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
-  }
-
   override def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
-    val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
+    val matcher = Matchers.makeMatcher[F, Err, Vars](method, converters, matchSegments)
     Kleisli[EitherT[F, Err, ?], Request[F], Vars]{ req =>
       EitherT.fromEither[F](matcher.processReq(req))
     }
   }
 
-  override def prefix(segments: Vector[String]): PBuilder[F, Err, Vars] = {
-    PBuilder(segments.map(LiteralSegment) ++ matchSegments, converters)
+  override def prefix(segments: Vector[String]): QBuilder[F, Err, Vars] = {
+    this.copy(matchSegments = segments.map(LiteralSegment) ++ matchSegments)
   }
 }
 

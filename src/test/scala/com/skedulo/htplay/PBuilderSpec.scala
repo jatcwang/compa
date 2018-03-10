@@ -11,14 +11,16 @@ import org.http4s.implicits._
 import org.scalatest.{AsyncFreeSpec, Matchers}
 import shapeless._
 import shapeless.ops.function.{FnFromProduct, FnToProduct}
+import org.http4s.Method.GET
 
 class PBuilderSpec extends AsyncFreeSpec with Matchers {
 
-  val root = rootWith[Task]
+  val setup = makeRoot[Task, ReqError]
+  import setup._
 
   "PBuilder" - {
     "parses with path variables" in {
-      val builder: PBuilder[Task, ReqError, Int :: String :: HNil] = root / "asdf" / intVar / stringVar
+      val builder: PBuilder[Task, ReqError, Int :: String :: HNil] = GET / "asdf" / intVar / stringVar
       val matcher                                                  = builder.make
       val req                                                      = Request[Task](uri = Uri.fromString("https://hello.com/asdf/12/world").right.get)
       matcher
@@ -31,7 +33,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     }
 
     "parses path & query param" in {
-      val builder: QBuilder[Task, ReqError, Int :: Int :: String :: HNil] = root / "asdf" / intVar :? Q.int("myint") & Q
+      val builder: QBuilder[Task, ReqError, Int :: Int :: String :: HNil] = GET / "asdf" / intVar :? Q.int("myint") & Q
         .str("mystr")
       val matcher = builder.make
       val req     = Request[Task](uri = Uri.fromString("https://hello.com/asdf/12?myint=5&mystr=hello").right.get)
@@ -45,7 +47,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     }
 
     "with request postprocessing pipeline (parsing request)" in {
-      val path = root / "asdf" / intVar | auth |>> {
+      val path = GET / "asdf" / intVar | auth |>> {
         case i :: user :: HNil =>
           Task.delay {
             assert(i == 12)
@@ -67,7 +69,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     }
 
     "with request postprocessing pipeline (depending on previous results)" in {
-      val path = (root / "asdf" / intVar / intVar processCurrent makeCoordinate) |>> { rect =>
+      val path = (GET / "asdf" / intVar / intVar processCurrent makeCoordinate) |>> { rect =>
         Task.delay {
           assert(rect == Rectangle(2, 3) :: HNil)
           Response(Status.Ok)
@@ -84,7 +86,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
     }
 
     "sugar syntax for binding to request handlers that are functions" in {
-      val path = root / "asdf" / intVar | auth |> (myRequestHandler _)
+      val path = GET / "asdf" / intVar | auth |> (myRequestHandler _)
       val req = Request[Task](
         uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
         headers = Headers(Header("Authorization", "john"))

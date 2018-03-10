@@ -1,14 +1,15 @@
 package com.skedulo.htplay.paths
 
-import cats.{Applicative, Monad}
+import cats.Applicative
 import cats.data.{EitherT, Kleisli}
-import org.http4s.{Query, Request, Response}
-import shapeless.{HList, HNil}
-import shapeless._
-import shapeless.ops.hlist.{Prepend, Tupler}
 import cats.syntax.either._
-import com.skedulo.htplay.paths.Converter.{AnyConverter, ExistConverter}
+import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
+import org.http4s.{Query, Request}
+import shapeless.ops.hlist.Prepend
+import shapeless._
+import org.http4s.Method
+import scala.language.implicitConversions
 
 import scala.language.higherKinds
 
@@ -22,48 +23,62 @@ case class PathVarSegment[Err, A](parser: String => Either[Err, A]) extends Segm
 
 //TODOO: make private
 case class PBuilder[F[_], Err, Vars <: HList](
-  matchSegments: Vector[Segment],
+  override val method: Method,
+  override val matchSegments: Vector[Segment],
   override val converters: Vector[ExistConverter[Err]]
 ) extends SuperBuilder[F, Err, Vars] {
 
   def /(segment: String): PBuilder[F, Err, Vars] =
-    PBuilder[F, Err, Vars](matchSegments :+ LiteralSegment(segment), converters)
+    this.copy(matchSegments = matchSegments :+ LiteralSegment(segment))
 
   def /[A](
     segment: PathVarSegment[Err, A]
   )(implicit prepend: Prepend[Vars, A :: HNil]): PBuilder[F, Err, prepend.Out] = {
     val c = StringConverter(segment.parser)
-    PBuilder(matchSegments :+ segment, converters :+ c)
+    PBuilder(method, matchSegments :+ segment, converters :+ c)
   }
 
   def :?[A](
     queryParam: SingleParam[Err, A]
   )(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] =
-    QBuilder[F, Err, Vars](matchSegments, converters).withQueryParam(queryParam)(prepend)
-
-  def prepend(paths: Vector[String]): PBuilder[F, Err, Vars] =
-    this.copy(paths.map(LiteralSegment) ++ matchSegments, converters)
+    QBuilder[F, Err, Vars](method, matchSegments, converters).withQueryParam(queryParam)(prepend)
 
   override def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
-    val matcher = Matchers.makeMatcher[F, Err, Vars](converters, matchSegments)
+    val matcher = Matchers.makeMatcher[F, Err, Vars](method, converters, matchSegments)
     Kleisli[EitherT[F, Err, ?], Request[F], Vars] { req =>
       EitherT.fromEither[F](matcher.processReq(req))
     }
   }
 
   override def prefix(segments: Vector[String]): PBuilder[F, Err, Vars] = {
-    PBuilder(segments.map(LiteralSegment) ++ matchSegments, converters)
+    this.copy(matchSegments = segments.map(LiteralSegment) ++ matchSegments)
   }
 }
 
 object PBuilder {
-  def rootWith[F[_]]: PBuilder[F, ReqError, HNil] =
-    PBuilder[F, ReqError, HNil](matchSegments = Vector.empty, converters = Vector.empty)
 
   val intVar: PathVarSegment[ReqError, Int] = PathVarSegment(
     str => Either.catchNonFatal(str.toInt).leftMap(e => InvalidRequest(e.getMessage))
   )
   val stringVar: PathVarSegment[ReqError, String] = PathVarSegment(str => Right(str))
+
+  def makeRoot[F[_], Err] = new Http4sMethodExts[F, Err]
+
+  class Http4sMethodExts[F[_], Err] {
+    class Http4sMethodOps(val method: Method) {
+
+      def /(segment: String): PBuilder[F, Err, HNil] =
+        PBuilder[F, Err, HNil](method, matchSegments = Vector(LiteralSegment(segment)), converters = Vector.empty)
+
+      def /[A](segment: PathVarSegment[Err, A]): PBuilder[F, Err, A :: HNil] = {
+        val c = StringConverter(segment.parser)
+        PBuilder[F, Err, A :: HNil](method, matchSegments = Vector(segment), converters = Vector(c))
+      }
+    }
+
+    implicit def toMethodOps(method: Method) = new Http4sMethodOps(method)
+  }
+
 
 }
 

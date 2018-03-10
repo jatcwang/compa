@@ -1,17 +1,17 @@
 package com.skedulo.htplay
 
-import com.skedulo.htplay.paths.PBuilder.rootWith
-import com.skedulo.htplay.paths.{FilterError, InvalidRequest, ReqError, UriNotMatched}
+import com.skedulo.htplay.paths._
 import com.skedulo.htplay.route.RouteGroup
-import fs2.{Chunk, Stream}
 import monix.eval.Task
 import org.http4s._
 import org.scalatest.{AsyncFreeSpec, Matchers}
 import monix.execution.Scheduler.Implicits.global
+import org.http4s.Method.{GET, DELETE}
 
 class PathMatchingSpec extends AsyncFreeSpec with Matchers {
 
-  val root = rootWith[Task]
+  val setup = PBuilder.makeRoot[Task, ReqError]
+  import setup._
 
   val UNAUTHORIZED = Response[Task](Status.Unauthorized)
   val OK = Response[Task](Status.Ok)
@@ -20,9 +20,9 @@ class PathMatchingSpec extends AsyncFreeSpec with Matchers {
   //TODO: document deprecation warning for Function0 using eta expansion syntax
   "group of paths matches successfully" in {
     val group = RouteGroup(
-      root / "rejected" |> (() => return401),
-      root / "ok"       |> (() => return200),
-      root / "conflict" |> (() => return409)
+      GET / "rejected" |> (() => return401),
+      GET / "ok"       |> (() => return200),
+      DELETE / "conflict" |> (() => return409)
     )
 
     val go = group.toHttpService(convertReqError).run
@@ -30,7 +30,7 @@ class PathMatchingSpec extends AsyncFreeSpec with Matchers {
     (for {
       r401 <- go(Request(uri = makeUri("rejected"))).value
       r200 <- go(Request(uri = makeUri("ok"))).value
-      r409 <- go(Request(uri = makeUri("conflict"))).value
+      r409 <- go(Request(method = DELETE, uri = makeUri("conflict"))).value
       rNotFound <- go(Request(uri = makeUri("invalid/path"))).value
     } yield {
       r401 shouldEqual Some(UNAUTHORIZED)
@@ -39,6 +39,7 @@ class PathMatchingSpec extends AsyncFreeSpec with Matchers {
       rNotFound shouldEqual None
     }).runAsync
   }
+  //TODOO: check trailing slash
 
   def return401: Task[Response[Task]] = {
     Task.now(UNAUTHORIZED)

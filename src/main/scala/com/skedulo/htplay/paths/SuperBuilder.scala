@@ -4,13 +4,13 @@ import cats.data.{EitherT, Kleisli}
 import cats.{Applicative, Monad}
 import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
-import org.http4s.{Request, Response}
+import org.http4s.{Method, Request, Response}
 import shapeless.ops.function.FnToProduct
 import shapeless.{HNil, _}
 import shapeless.ops.hlist.Prepend
 
 trait SuperBuilder[F[_], Err, Res <: HList] { self =>
-  //TODOO: need these?
+  protected def method: Method
   protected def matchSegments: Vector[Segment]
   protected def converters: Vector[ExistConverter[Err]]
 
