@@ -14,17 +14,4 @@ object Playground {
   type FFF[F[_], A, Err, B] = Kleisli[EitherT[F, Err, ?], A, B]
 
   type ReqFilter[F[_], Err] = FFF[F, Request[F], Err, Response[F]]
-
-  def processRequest[F[_]](filter: ReqFilter[F, ReqError])(implicit F: Monad[F]): Kleisli[OptionT[F, ?], Request[F], Response[F]] = {
-    // better convertion to response
-    filter.mapF { s: EitherT[F, ReqError, Response[F]] =>
-      OptionT.apply(s.value.map {
-        case Left(UriNotMatched) => Some(Response.notFound[F])
-        case Left(InvalidRequest(d)) => Some(Response(Status.BadRequest))
-        case Left(FilterError(e)) => Some(Response(Status.InternalServerError))
-        case Right(r) => Some(r)
-      })
-    }
-  }
-
 }
