@@ -1,7 +1,7 @@
 package com.skedulo.htplay.paths
 
-import cats.Monad
-import cats.data.EitherT
+import cats.{Functor, Monad}
+import cats.data.{EitherT, Kleisli}
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.{Request, Response}
 import shapeless._
@@ -26,6 +26,21 @@ trait PathPartial[F[_], Err, Res <: HList] { self =>
       override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, prepend.Out] = newPost
     }
 
+  }
+
+  def ||(
+    fx: FFF[F, Request[F], Err, Unit]
+  )(implicit F: Monad[F]): PathPartial[F, Err, Res] = {
+    val newPost = (req: Request[F]) => {
+      val t: EitherT[F, Err, Unit] = fx.run(req)
+      postUriMatchProcessing(req).andThen(vars => t.map(_ => vars))
+    }
+
+    new PathPartial[F, Err, Res] {
+      override protected type BuilderVars = self.BuilderVars
+      override protected val builder: SuperBuilder[F, Err, BuilderVars] = self.builder
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Res] = newPost
+    }
   }
 
   def processCurrent[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F], asHList: AsHList[NewRes]): PathPartial[F, Err, asHList.Out] = {

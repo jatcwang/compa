@@ -8,17 +8,17 @@ import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.http4s._
 import org.http4s.implicits._
-import org.scalatest.{AsyncFreeSpec, Matchers}
+import org.scalatest.{AsyncFreeSpec, Inside, Matchers}
 import shapeless._
 import shapeless.ops.function.{FnFromProduct, FnToProduct}
 import org.http4s.Method.GET
 
-class PBuilderSpec extends AsyncFreeSpec with Matchers {
+class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside {
 
   val setup = makeRoot[Task, ReqError]
   import setup._
 
-  "PBuilder" - {
+  "Basic Builders" - {
     "parses with path variables" in {
       val builder: PBuilder[Task, ReqError, Int :: String :: HNil] = GET / "asdf" / intVar / stringVar
       val matcher                                                  = builder.make
@@ -100,31 +100,90 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers {
         .runAsync
     }
 
-    def auth: FFF[Task, Request[Task], ReqError, User] = {
-      Kleisli[EitherT[Task, ReqError, ?], Request[Task], User] { req =>
-        EitherT.fromOption[Task](req.headers.get("Authorization".ci).map { authHeaderValue =>
-          User(authHeaderValue.value)
-        }, InvalidRequest("not authorized"))
+    "postprocess with filter (filter produces no output)" in {
+      val path = GET / "asdf" / intVar || authFilter |> (justIntHandler _)
+      def makeReq(authHeader: String) = Request[Task](
+        uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
+        headers = Headers(Header("Authorization", authHeader))
+      )
 
-      }
+      val validReq = makeReq("john")
+      val invalidReq = makeReq("nope")
+
+      val matcher = path.make
+
+      Task.map2(matcher.run(validReq).value, matcher.run(invalidReq).value) { case (validResp, invalidResp) =>
+        validResp shouldEqual Right(Response(Status.Ok))
+        invalidResp shouldEqual Left(InvalidRequest("not authorized"))
+      }.runAsync
+
     }
 
-    def makeCoordinate: FFF[Task, Int :: Int :: HNil, ReqError, Rectangle] =
-      Kleisli[EitherT[Task, ReqError, ?], Int :: Int :: HNil, Rectangle] {
-        case (w :: h :: HNil) =>
-          EitherT.pure(Rectangle(w, h))
-      }
+  }
 
+  "PathPartial" - {
+
+    "postprocess with filter (filter produces no output)" in {
+      // alwaySucceedFilter turns this into a PathPartial
+      val path = GET / "asdf" / intVar || alwaySucceedFilter || authFilter |> (justIntHandler _)
+      def makeReq(authHeader: String) = Request[Task](
+        uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
+        headers = Headers(Header("Authorization", authHeader))
+      )
+
+      val validReq = makeReq("john")
+      val invalidReq = makeReq("nope")
+
+      val matcher = path.make
+
+      Task.map2(matcher.run(validReq).value, matcher.run(invalidReq).value) { case (validResp, invalidResp) =>
+        validResp shouldEqual Right(Response(Status.Ok))
+        invalidResp shouldEqual Left(InvalidRequest("not authorized"))
+      }.runAsync
+
+    }
   }
 
   case class User(name: String)
   case class Rectangle(width: Int, height: Int)
+
+  def justIntHandler(id: Int): Task[Response[Task]] =
+    Task.now(Response(status = Status.Ok))
 
   def myRequestHandler(id: Int, user: User): Task[Response[Task]] =
     Task.now(Response(status = Status.Ok))
 
   def anotherHandler(id: Int, f: Int, t: Int, user: User): Task[Response[Task]] =
     Task.now(Response(status = Status.Ok))
+
+  // Filters
+
+  def auth: FFF[Task, Request[Task], ReqError, User] = {
+    Kleisli[EitherT[Task, ReqError, ?], Request[Task], User] { req =>
+      EitherT.fromOption[Task](req.headers.get("Authorization".ci).map { authHeaderValue =>
+        User(authHeaderValue.value)
+      }, InvalidRequest("not authorized"))
+    }
+  }
+
+  def authFilter: FFF[Task, Request[Task], ReqError, Unit] = {
+    Kleisli[EitherT[Task, ReqError, ?], Request[Task], Unit] { req =>
+      EitherT.fromOption[Task](req.headers.get("Authorization".ci).filter(s => s.value == "john").map(_ => ()), InvalidRequest("not authorized"))
+    }
+  }
+
+  def alwaySucceedFilter: FFF[Task, Request[Task], ReqError, Unit] = {
+    Kleisli[EitherT[Task, ReqError, ?], Request[Task], Unit] { _ =>
+      EitherT.pure[Task, ReqError](())
+    }
+  }
+
+  def makeCoordinate: FFF[Task, Int :: Int :: HNil, ReqError, Rectangle] =
+    Kleisli[EitherT[Task, ReqError, ?], Int :: Int :: HNil, Rectangle] {
+      case (w :: h :: HNil) =>
+        EitherT.pure(Rectangle(w, h))
+    }
+
 
 }
 /*

@@ -1,7 +1,7 @@
 package com.skedulo.htplay.paths
 
 import cats.data.{EitherT, Kleisli}
-import cats.{Applicative, Monad}
+import cats.{Applicative, Functor, Monad}
 import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.{Method, Request, Response}
@@ -30,6 +30,23 @@ trait SuperBuilder[F[_], Err, Res <: HList] { self =>
       override protected type BuilderVars = Res
       override protected val builder: SuperBuilder[F, Err, BuilderVars] = self
       override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, prepend.Out] = newPost
+    }
+  }
+
+  def ||(
+    fx: FFF[F, Request[F], Err, Unit]
+  )(implicit F: Functor[F]): PathPartial[F, Err, Res] = {
+    val newPost = (req: Request[F]) => {
+      Kleisli[EitherT[F, Err, ?], Res, Res] { res =>
+        val t: EitherT[F, Err, Unit] = fx.run(req)
+        t.map(_ => res)
+      }
+    }
+
+    new PathPartial[F, Err, Res] {
+      override protected type BuilderVars = Res
+      override protected val builder: SuperBuilder[F, Err, BuilderVars] = self
+      override protected val postUriMatchProcessing: Request[F] => FFF[F, BuilderVars, Err, Res] = newPost
     }
   }
 
