@@ -1,22 +1,22 @@
-package com.skedulo.htplay.paths
+package com.skedulo.htplay.builders
 
 import cats.Applicative
 import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
+import com.skedulo.htplay.builders
+import com.skedulo.htplay.builders.Converter.ExistConverter
 import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
-import com.skedulo.htplay.paths.Converter.ExistConverter
+import com.skedulo.htplay.paths._
 import com.skedulo.htplay.paths.Playground.FFF
-import org.http4s.{Query, Request}
-import shapeless.ops.hlist.Prepend
+import org.http4s.{Method, Query, Request}
 import shapeless._
-import org.http4s.Method
+import shapeless.ops.hlist.Prepend
 
-import scala.language.implicitConversions
-import scala.language.higherKinds
+import scala.language.{higherKinds, implicitConversions}
 
 case class PathBuilder[F[_], Err, Vars <: HList] private (
   override val method: Method,
-  override val matchSegments: Vector[Segment],
+  override val matchSegments: Vector[PathSegment],
   override val converters: Vector[ExistConverter[Err]]
 ) extends SuperBuilder[F, Err, Vars] {
 
@@ -27,7 +27,7 @@ case class PathBuilder[F[_], Err, Vars <: HList] private (
     segment: PathVarSegment[Err, A]
   )(implicit prepend: Prepend[Vars, A :: HNil]): PathBuilder[F, Err, prepend.Out] = {
     val c = StringConverter(segment.parser)
-    PathBuilder(method, matchSegments :+ segment, converters :+ c)
+    builders.PathBuilder(method, matchSegments :+ segment, converters :+ c)
   }
 
   def :?[A](
@@ -64,7 +64,7 @@ object PathBuilder {
 
       def /[A](segment: PathVarSegment[Err, A]): PathBuilder[F, Err, A :: HNil] = {
         val c = StringConverter(segment.parser)
-        PathBuilder[F, Err, A :: HNil](method, matchSegments = Vector(segment), converters = Vector(c))
+        builders.PathBuilder[F, Err, A :: HNil](method, matchSegments = Vector(segment), converters = Vector(c))
       }
     }
 
@@ -74,18 +74,3 @@ object PathBuilder {
 
 }
 
-sealed trait Converter[In, Err, A] {
-  def converter: In => Either[Err, A]
-}
-
-object Converter {
-  type ExistConverter[Err] = Converter[_, Err, _]
-  type AnyConverter[Err]   = Converter[Any, Err, Any]
-}
-
-// Convert a string into A
-case class StringConverter[Err, A](override val converter: String     => Either[Err, A]) extends Converter[String, Err, A]
-case class QueryStringConverter[Err, A](override val converter: Query => Either[Err, A])
-    extends Converter[Query, Err, A]
-case class RequestConverter[F[_], Err, A](override val converter: Request[F] => Either[Err, A])
-    extends Converter[Request[F], Err, A]

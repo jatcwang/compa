@@ -1,17 +1,17 @@
 package com.skedulo.htplay
 
 import cats.data.{EitherT, Kleisli}
+import com.skedulo.htplay.builders.{PathBuilder, QueryBuilder}
 import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
-import com.skedulo.htplay.paths.PathBuilder._
+import com.skedulo.htplay.builders.PathBuilder._
 import com.skedulo.htplay.paths.Playground.FFF
-import com.skedulo.htplay.paths.{PathBuilder, QueryBuilder, QueryParam => Q}
+import com.skedulo.htplay.builders.{QueryParam => Q}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.http4s._
 import org.http4s.implicits._
 import org.scalatest.{AsyncFreeSpec, Inside, Matchers}
 import shapeless._
-import shapeless.ops.function.{FnFromProduct, FnToProduct}
 import org.http4s.Method.GET
 
 class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside {

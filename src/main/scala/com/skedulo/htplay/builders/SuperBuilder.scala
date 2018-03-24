@@ -1,17 +1,18 @@
-package com.skedulo.htplay.paths
+package com.skedulo.htplay.builders
 
 import cats.data.{EitherT, Kleisli}
 import cats.{Applicative, Functor, Monad}
-import com.skedulo.htplay.paths.Converter.ExistConverter
+import com.skedulo.htplay.builders.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
+import com.skedulo.htplay.paths._
 import org.http4s.{Method, Request, Response}
 import shapeless.ops.function.FnToProduct
-import shapeless.{HNil, _}
 import shapeless.ops.hlist.Prepend
+import shapeless._
 
 trait SuperBuilder[F[_], Err, Res <: HList] { self =>
   protected def method: Method
-  protected def matchSegments: Vector[Segment]
+  protected def matchSegments: Vector[PathSegment]
   protected def converters: Vector[ExistConverter[Err]]
 
   def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Res]

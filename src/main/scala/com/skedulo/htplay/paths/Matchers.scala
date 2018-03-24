@@ -1,6 +1,7 @@
 package com.skedulo.htplay.paths
 
-import com.skedulo.htplay.paths.Converter.{AnyConverter, ExistConverter}
+import com.skedulo.htplay.builders.Converter.{AnyConverter, ExistConverter}
+import com.skedulo.htplay.builders.{QueryStringConverter, RequestConverter, StringConverter}
 import org.http4s.{Method, Request}
 import shapeless.{HList, HNil}
 
@@ -9,7 +10,7 @@ import scala.language.higherKinds
 
 object Matchers {
 
-  def makeMatcher[F[_], Err, Vars <: HList](method: Method, converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[Segment])(implicit E: HasUriNotMatched[Err]) = {
+  def makeMatcher[F[_], Err, Vars <: HList](method: Method, converters: Vector[ExistConverter[Err]], matchPathSegments: Vector[PathSegment])(implicit E: HasUriNotMatched[Err]) = {
     new Matcher[F, Err, Vars] {
       override def processReq(req: Request[F]): Either[Err, Vars] = {
         if (req.method == method) {

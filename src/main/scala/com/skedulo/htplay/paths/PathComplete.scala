@@ -2,6 +2,7 @@ package com.skedulo.htplay.paths
 
 import cats.Monad
 import cats.data.{EitherT, Kleisli}
+import com.skedulo.htplay.builders.SuperBuilder
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.{Request, Response}
 import shapeless._
