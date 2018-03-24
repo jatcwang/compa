@@ -5,10 +5,10 @@ import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
 import com.skedulo.htplay.builders
 import com.skedulo.htplay.builders.Converter.ExistConverter
-import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
+import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths._
 import com.skedulo.htplay.paths.Playground.FFF
-import org.http4s.{Method, Query, Request}
+import org.http4s.{Method, Request}
 import shapeless._
 import shapeless.ops.hlist.Prepend
 

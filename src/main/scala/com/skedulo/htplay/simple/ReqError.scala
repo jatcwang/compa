@@ -1,4 +1,4 @@
-package com.skedulo.htplay.easy
+package com.skedulo.htplay.simple
 
 import com.skedulo.htplay.paths.HasUriNotMatched
 

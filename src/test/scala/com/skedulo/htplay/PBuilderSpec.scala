@@ -2,7 +2,7 @@ package com.skedulo.htplay
 
 import cats.data.{EitherT, Kleisli}
 import com.skedulo.htplay.builders.{PathBuilder, QueryBuilder}
-import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
+import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.builders.PathBuilder._
 import com.skedulo.htplay.paths.Playground.FFF
 import com.skedulo.htplay.builders.{QueryParam => Q}

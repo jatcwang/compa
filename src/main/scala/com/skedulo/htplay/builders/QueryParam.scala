@@ -1,6 +1,6 @@
 package com.skedulo.htplay.builders
 
-import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
+import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import cats.syntax.either._
 
 sealed trait QueryParam[Err, T]

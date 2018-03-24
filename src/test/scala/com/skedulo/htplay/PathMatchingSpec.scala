@@ -1,7 +1,7 @@
 package com.skedulo.htplay
 
 import com.skedulo.htplay.builders.PathBuilder
-import com.skedulo.htplay.easy.{FilterError, InvalidRequest, ReqError, UriNotMatched}
+import com.skedulo.htplay.simple.{FilterError, InvalidRequest, ReqError, UriNotMatched}
 import com.skedulo.htplay.paths._
 import com.skedulo.htplay.route.RouteGroup
 import monix.eval.Task
