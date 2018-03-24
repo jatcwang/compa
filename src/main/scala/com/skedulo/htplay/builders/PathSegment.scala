@@ -1,4 +1,4 @@
-package com.skedulo.htplay.paths
+package com.skedulo.htplay.builders
 
 private[htplay] sealed trait PathSegment
 

@@ -1,7 +1,7 @@
 package com.skedulo.htplay.paths
 
 import com.skedulo.htplay.builders.Converter.{AnyConverter, ExistConverter}
-import com.skedulo.htplay.builders.{QueryStringConverter, RequestConverter, StringConverter}
+import com.skedulo.htplay.builders._
 import org.http4s.{Method, Request}
 import shapeless.{HList, HNil}
 

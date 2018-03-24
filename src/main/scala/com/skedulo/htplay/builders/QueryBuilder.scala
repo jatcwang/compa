@@ -6,7 +6,7 @@ import cats.syntax.either._
 import com.skedulo.htplay.builders.Converter.ExistConverter
 import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths.Playground.FFF
-import com.skedulo.htplay.paths.{HasUriNotMatched, LiteralSegment, Matchers, PathSegment}
+import com.skedulo.htplay.paths.{HasUriNotMatched, Matchers}
 import org.http4s.{Method, Request}
 import shapeless.ops.hlist.Prepend
 import shapeless.{HList, HNil, _}
