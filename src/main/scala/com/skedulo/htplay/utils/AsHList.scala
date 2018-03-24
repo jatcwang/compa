@@ -1,4 +1,4 @@
-package com.skedulo.htplay.paths
+package com.skedulo.htplay.utils
 
 import shapeless._
 

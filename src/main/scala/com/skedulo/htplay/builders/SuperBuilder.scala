@@ -5,6 +5,7 @@ import cats.{Applicative, Functor, Monad}
 import com.skedulo.htplay.builders.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
 import com.skedulo.htplay.paths._
+import com.skedulo.htplay.utils.AsHList
 import org.http4s.{Method, Request, Response}
 import shapeless.ops.function.FnToProduct
 import shapeless.ops.hlist.Prepend
