@@ -22,14 +22,13 @@ object QueryParam {
   def str(key: String) = SingleParam[ReqError, String](key, str => Right(str))
 }
 
-//TODOO: make private
-case class QBuilder[F[_], Err, Vars <: HList](
+case class QueryBuilder[F[_], Err, Vars <: HList] private (
   override val method: Method,
   override val matchSegments: Vector[Segment],
   override val converters: Vector[ExistConverter[Err]]
 ) extends SuperBuilder[F, Err, Vars]{
 
-  def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
+  def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] = {
     val converter = QueryStringConverter(q => {
       //TODOO: handle empty
       val paramValue = q.params.get(param.key).get
@@ -38,7 +37,7 @@ case class QBuilder[F[_], Err, Vars <: HList](
     this.copy(converters = converters :+ converter)
   }
 
-  def &[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] = {
+  def &[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] = {
     // pass in the same implicit so compiler can prove that the return type
     // is the same (due to path-dependent types)
     withQueryParam(param)(prepend)
@@ -51,13 +50,9 @@ case class QBuilder[F[_], Err, Vars <: HList](
     }
   }
 
-  override def prefix(segments: Vector[String]): QBuilder[F, Err, Vars] = {
+  override def prefix(segments: Vector[String]): QueryBuilder[F, Err, Vars] = {
     this.copy(matchSegments = segments.map(LiteralSegment) ++ matchSegments)
   }
 }
 
-
-object QBuilder {
-
-}
 

@@ -21,27 +21,26 @@ case class LiteralSegment(str: String) extends Segment
 //TODOO: make you able to pass a name
 case class PathVarSegment[Err, A](parser: String => Either[Err, A]) extends Segment
 
-//TODOO: make private
-case class PBuilder[F[_], Err, Vars <: HList](
+case class PathBuilder[F[_], Err, Vars <: HList] private (
   override val method: Method,
   override val matchSegments: Vector[Segment],
   override val converters: Vector[ExistConverter[Err]]
 ) extends SuperBuilder[F, Err, Vars] {
 
-  def /(segment: String): PBuilder[F, Err, Vars] =
+  def /(segment: String): PathBuilder[F, Err, Vars] =
     this.copy(matchSegments = matchSegments :+ LiteralSegment(segment))
 
   def /[A](
     segment: PathVarSegment[Err, A]
-  )(implicit prepend: Prepend[Vars, A :: HNil]): PBuilder[F, Err, prepend.Out] = {
+  )(implicit prepend: Prepend[Vars, A :: HNil]): PathBuilder[F, Err, prepend.Out] = {
     val c = StringConverter(segment.parser)
-    PBuilder(method, matchSegments :+ segment, converters :+ c)
+    PathBuilder(method, matchSegments :+ segment, converters :+ c)
   }
 
   def :?[A](
     queryParam: SingleParam[Err, A]
-  )(implicit prepend: Prepend[Vars, A :: HNil]): QBuilder[F, Err, prepend.Out] =
-    QBuilder[F, Err, Vars](method, matchSegments, converters).withQueryParam(queryParam)(prepend)
+  )(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] =
+    QueryBuilder[F, Err, Vars](method, matchSegments, converters).withQueryParam(queryParam)(prepend)
 
   override def make(implicit E: HasUriNotMatched[Err], F: Applicative[F]): FFF[F, Request[F], Err, Vars] = {
     val matcher = Matchers.makeMatcher[F, Err, Vars](method, converters, matchSegments)
@@ -50,12 +49,12 @@ case class PBuilder[F[_], Err, Vars <: HList](
     }
   }
 
-  override def prefix(segments: Vector[String]): PBuilder[F, Err, Vars] = {
+  override def prefix(segments: Vector[String]): PathBuilder[F, Err, Vars] = {
     this.copy(matchSegments = segments.map(LiteralSegment) ++ matchSegments)
   }
 }
 
-object PBuilder {
+object PathBuilder {
 
   val intVar: PathVarSegment[ReqError, Int] = PathVarSegment(
     str => Either.catchNonFatal(str.toInt).leftMap(e => InvalidRequest(e.getMessage))
@@ -67,12 +66,12 @@ object PBuilder {
   class Http4sMethodExts[F[_], Err] {
     class Http4sMethodOps(val method: Method) {
 
-      def /(segment: String): PBuilder[F, Err, HNil] =
-        PBuilder[F, Err, HNil](method, matchSegments = Vector(LiteralSegment(segment)), converters = Vector.empty)
+      def /(segment: String): PathBuilder[F, Err, HNil] =
+        PathBuilder[F, Err, HNil](method, matchSegments = Vector(LiteralSegment(segment)), converters = Vector.empty)
 
-      def /[A](segment: PathVarSegment[Err, A]): PBuilder[F, Err, A :: HNil] = {
+      def /[A](segment: PathVarSegment[Err, A]): PathBuilder[F, Err, A :: HNil] = {
         val c = StringConverter(segment.parser)
-        PBuilder[F, Err, A :: HNil](method, matchSegments = Vector(segment), converters = Vector(c))
+        PathBuilder[F, Err, A :: HNil](method, matchSegments = Vector(segment), converters = Vector(c))
       }
     }
 

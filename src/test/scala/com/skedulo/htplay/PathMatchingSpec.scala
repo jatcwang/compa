@@ -10,7 +10,7 @@ import org.http4s.Method.{GET, DELETE}
 
 class PathMatchingSpec extends AsyncFreeSpec with Matchers {
 
-  val setup = PBuilder.makeRoot[Task, ReqError]
+  val setup = PathBuilder.makeRoot[Task, ReqError]
   import setup._
 
   val UNAUTHORIZED = Response[Task](Status.Unauthorized)
