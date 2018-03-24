@@ -5,6 +5,7 @@ import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
 import com.skedulo.htplay.builders
 import com.skedulo.htplay.builders.Converter.ExistConverter
+import com.skedulo.htplay.builders.QueryParam.SingleParam
 import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths._
 import com.skedulo.htplay.paths.Playground.FFF
@@ -14,6 +15,7 @@ import shapeless.ops.hlist.Prepend
 
 import scala.language.{higherKinds, implicitConversions}
 
+//TODOO: deal with encoding/decoding issues in specified paths
 case class PathBuilder[F[_], Err, Vars <: HList] private (
   override val method: Method,
   override val matchSegments: Vector[PathSegment],

@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
 import com.skedulo.htplay.builders.Converter.ExistConverter
+import com.skedulo.htplay.builders.QueryParam.SingleParam
 import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths.Playground.FFF
 import com.skedulo.htplay.paths.{HasUriNotMatched, Matchers}
