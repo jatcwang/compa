@@ -1,12 +1,13 @@
 package com.skedulo.htplay
 
+import com.skedulo.htplay.easy.{FilterError, InvalidRequest, ReqError, UriNotMatched}
 import com.skedulo.htplay.paths._
 import com.skedulo.htplay.route.RouteGroup
 import monix.eval.Task
 import org.http4s._
 import org.scalatest.{AsyncFreeSpec, Matchers}
 import monix.execution.Scheduler.Implicits.global
-import org.http4s.Method.{GET, DELETE}
+import org.http4s.Method.{DELETE, GET}
 
 class PathMatchingSpec extends AsyncFreeSpec with Matchers {
 

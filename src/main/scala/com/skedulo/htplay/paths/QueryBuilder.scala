@@ -3,6 +3,7 @@ package com.skedulo.htplay.paths
 import cats.Applicative
 import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
+import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.{Method, Request}

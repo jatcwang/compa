@@ -1,9 +1,10 @@
 package com.skedulo.htplay
 
 import cats.data.{EitherT, Kleisli}
+import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths.PathBuilder._
 import com.skedulo.htplay.paths.Playground.FFF
-import com.skedulo.htplay.paths.{InvalidRequest, PathBuilder, QueryBuilder, ReqError, QueryParam => Q}
+import com.skedulo.htplay.paths.{PathBuilder, QueryBuilder, QueryParam => Q}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.http4s._

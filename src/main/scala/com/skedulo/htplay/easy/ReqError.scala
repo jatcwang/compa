@@ -1,7 +1,6 @@
-package com.skedulo.htplay.paths
+package com.skedulo.htplay.easy
 
-import cats.data.ValidatedNel
-import org.http4s.Uri
+import com.skedulo.htplay.paths.HasUriNotMatched
 
 sealed trait ReqError
 

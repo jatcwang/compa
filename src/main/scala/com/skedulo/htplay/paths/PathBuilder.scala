@@ -3,23 +3,16 @@ package com.skedulo.htplay.paths
 import cats.Applicative
 import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
+import com.skedulo.htplay.easy.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths.Converter.ExistConverter
 import com.skedulo.htplay.paths.Playground.FFF
 import org.http4s.{Query, Request}
 import shapeless.ops.hlist.Prepend
 import shapeless._
 import org.http4s.Method
+
 import scala.language.implicitConversions
-
 import scala.language.higherKinds
-
-sealed trait Segment
-
-// Literal matching of a segment
-case class LiteralSegment(str: String) extends Segment
-// a path variable may convert to multiple parameters
-//TODOO: make you able to pass a name
-case class PathVarSegment[Err, A](parser: String => Either[Err, A]) extends Segment
 
 case class PathBuilder[F[_], Err, Vars <: HList] private (
   override val method: Method,
