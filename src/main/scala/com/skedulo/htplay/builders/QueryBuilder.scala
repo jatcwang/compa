@@ -4,8 +4,6 @@ import cats.Applicative
 import cats.data.{EitherT, Kleisli}
 import cats.syntax.either._
 import com.skedulo.htplay.builders.Converter.ExistConverter
-import com.skedulo.htplay.builders.QueryParam.SingleParam
-import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.paths.Playground.FFF
 import com.skedulo.htplay.paths.{HasUriNotMatched, Matchers}
 import org.http4s.{Method, Request}
@@ -20,16 +18,15 @@ case class QueryBuilder[F[_], Err, Vars <: HList] private (
   override val converters: Vector[ExistConverter[Err]]
 ) extends SuperBuilder[F, Err, Vars]{
 
-  def withQueryParam[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] = {
+  def withQueryParam[A](param: QueryParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] = {
     val converter = QueryStringConverter(q => {
-      //TODOO: handle empty
-      val paramValue = q.params.get(param.key).get
-      param.convert(paramValue)
+      val paramValues = q.multiParams.get(param.key).getOrElse(Seq.empty).toList
+      param.runConvert(paramValues)
     })
     this.copy(converters = converters :+ converter)
   }
 
-  def &[A](param: SingleParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] = {
+  def &[A](param: QueryParam[Err, A])(implicit prepend: Prepend[Vars, A :: HNil]): QueryBuilder[F, Err, prepend.Out] = {
     // pass in the same implicit so compiler can prove that the return type
     // is the same (due to path-dependent types)
     withQueryParam(param)(prepend)

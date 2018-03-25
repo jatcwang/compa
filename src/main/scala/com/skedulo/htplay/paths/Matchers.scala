@@ -38,7 +38,7 @@ object Matchers {
               // process all values we already have
               pathInputValues.foreach { thisValue =>
                 //TODOO: unsafe parse
-                processedValues += convIter.next().asInstanceOf[AnyConverter[Err]].converter(thisValue).right.get
+                processedValues += convIter.next().asInstanceOf[AnyConverter[Err]].run(thisValue).right.get
               }
               // Other processors such as query strings or body parsers
               //TODOO: assuming all the rest of the converters take a request

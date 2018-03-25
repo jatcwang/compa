@@ -1,11 +1,11 @@
 package com.skedulo.htplay
 
 import cats.data.{EitherT, Kleisli}
-import com.skedulo.htplay.builders.{PathBuilder, QueryBuilder}
+import com.skedulo.htplay.builders.{PathBuilder, QueryBuilder, RouteSpecification}
 import com.skedulo.htplay.simple.{InvalidRequest, ReqError}
 import com.skedulo.htplay.builders.PathBuilder._
 import com.skedulo.htplay.paths.Playground.FFF
-import com.skedulo.htplay.builders.{QueryParam => Q}
+import com.skedulo.htplay.utils.FromStringInstances
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.http4s._
@@ -14,10 +14,7 @@ import org.scalatest.{AsyncFreeSpec, Inside, Matchers}
 import shapeless._
 import org.http4s.Method.GET
 
-class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside {
-
-  val setup = makeRoot[Task, ReqError]
-  import setup._
+class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRouteSpecification {
 
   "Basic Builders" - {
     "parses with path variables" in {
@@ -34,8 +31,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside {
     }
 
     "parses path & query param" in {
-      val builder: QueryBuilder[Task, ReqError, Int :: Int :: String :: HNil] = GET / "asdf" / intVar :? Q.int("myint") & Q
-        .str("mystr")
+      val builder: QueryBuilder[Task, ReqError, Int :: Int :: String :: HNil] = GET / "asdf" / intVar :? "myint".as[Int] & "mystr".as[String]
       val matcher = builder.make
       val req     = Request[Task](uri = Uri.fromString("https://hello.com/asdf/12?myint=5&mystr=hello").right.get)
       matcher
