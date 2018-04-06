@@ -47,13 +47,3 @@ case class PathBuilder[F[_], Err, Vars <: HList] private (
     this.copy(matchSegments = segments.map(LiteralSegment) ++ matchSegments)
   }
 }
-
-object PathBuilder {
-
-  val intVar: PathVarSegment[ReqError, Int] = PathVarSegment(
-    str => Either.catchNonFatal(str.toInt).leftMap(e => InvalidRequest(e.getMessage))
-  )
-  val stringVar: PathVarSegment[ReqError, String] = PathVarSegment(str => Right(str))
-
-}
-

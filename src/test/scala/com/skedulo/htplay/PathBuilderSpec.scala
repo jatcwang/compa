@@ -14,11 +14,11 @@ import org.scalatest.{AsyncFreeSpec, Inside, Matchers}
 import shapeless._
 import org.http4s.Method.GET
 
-class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRouteSpecification {
+class PathBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRouteSpecification {
 
   "Basic Builders" - {
     "parses with path variables" in {
-      val builder: PathBuilder[Task, ReqError, Int :: String :: HNil] = GET / "asdf" / intVar / stringVar
+      val builder: PathBuilder[Task, ReqError, Int :: String :: HNil] = GET / "asdf" / pathVar[Int] / pathVar[String]
       val matcher                                                  = builder.make
       val req                                                      = Request[Task](uri = Uri.fromString("https://hello.com/asdf/12/world").right.get)
       matcher
@@ -31,7 +31,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
     }
 
     "parses path & query param" in {
-      val builder: QueryBuilder[Task, ReqError, Int :: Int :: String :: HNil] = GET / "asdf" / intVar :? "myint".as[Int] & "mystr".as[String]
+      val builder: QueryBuilder[Task, ReqError, Int :: Int :: String :: HNil] = GET / "asdf" / pathVar[Int] :? "myint".as[Int] & "mystr".as[String]
       val matcher = builder.make
       val req     = Request[Task](uri = Uri.fromString("https://hello.com/asdf/12?myint=5&mystr=hello").right.get)
       matcher
@@ -43,8 +43,33 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
         .runAsync
     }
 
+    "optional query params" in {
+      val builder = GET / "asdf" :? "myint".opt[Int]
+      val matcher = builder.make
+      val reqWithParam     = Request[Task](uri = Uri.fromString("https://hello.com/asdf?myint=3").right.get)
+      val reqNoParam     = Request[Task](uri = Uri.fromString("https://hello.com/asdf").right.get)
+      (for {
+        withParam <- matcher.run(reqWithParam).value
+        noParam <- matcher.run(reqNoParam).value
+      } yield {
+        withParam shouldEqual Right(Some(3) :: HNil)
+        noParam shouldEqual Right(None :: HNil)
+      }).runAsync
+    }
+
+    "multiple query params of the same key" in {
+      val builder = GET / "asdf" :? "myint".many[Int]
+      val matcher = builder.make
+      val reqWithParam     = Request[Task](uri = Uri.fromString("https://hello.com/asdf?myint=3&myint=4").right.get)
+      (for {
+        withParam <- matcher.run(reqWithParam).value
+      } yield {
+        withParam shouldEqual Right(List(3, 4) :: HNil)
+      }).runAsync
+    }
+
     "with request postprocessing pipeline (parsing request)" in {
-      val path = GET / "asdf" / intVar | auth |>> {
+      val path = GET / "asdf" / pathVar[Int] | auth |>> {
         case i :: user :: HNil =>
           Task.delay {
             assert(i == 12)
@@ -66,7 +91,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
     }
 
     "with request postprocessing pipeline (depending on previous results)" in {
-      val path = (GET / "asdf" / intVar / intVar processCurrent makeCoordinate) |>> { rect =>
+      val path = (GET / "asdf" / pathVar[Int] / pathVar[Int] processCurrent makeCoordinate) |>> { rect =>
         Task.delay {
           assert(rect == Rectangle(2, 3) :: HNil)
           Response(Status.Ok)
@@ -83,7 +108,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
     }
 
     "sugar syntax for binding to request handlers that are functions" in {
-      val path = GET / "asdf" / intVar | auth |> (myRequestHandler _)
+      val path = GET / "asdf" / pathVar[Int] | auth |> (myRequestHandler _)
       val req = Request[Task](
         uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
         headers = Headers(Header("Authorization", "john"))
@@ -98,7 +123,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
     }
 
     "postprocess with filter (filter produces no output)" in {
-      val path = GET / "asdf" / intVar || authFilter |> (justIntHandler _)
+      val path = GET / "asdf" / pathVar[Int] || authFilter |> (justIntHandler _)
       def makeReq(authHeader: String) = Request[Task](
         uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
         headers = Headers(Header("Authorization", authHeader))
@@ -122,7 +147,7 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
 
     "postprocess with filter (filter produces no output)" in {
       // alwaySucceedFilter turns this into a PathPartial
-      val path = GET / "asdf" / intVar || alwaySucceedFilter || authFilter |> (justIntHandler _)
+      val path = GET / "asdf" / pathVar[Int] || alwaySucceedFilter || authFilter |> (justIntHandler _)
       def makeReq(authHeader: String) = Request[Task](
         uri     = Uri.fromString("https://hello.com/asdf/12").right.get,
         headers = Headers(Header("Authorization", authHeader))
@@ -180,7 +205,6 @@ class PBuilderSpec extends AsyncFreeSpec with Matchers with Inside with SimpleRo
       case (w :: h :: HNil) =>
         EitherT.pure(Rectangle(w, h))
     }
-
 
 }
 /*

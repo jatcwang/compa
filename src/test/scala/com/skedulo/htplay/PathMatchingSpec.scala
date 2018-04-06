@@ -1,14 +1,11 @@
 package com.skedulo.htplay
 
-import com.skedulo.htplay.builders.{PathBuilder, RouteSpecification}
-import com.skedulo.htplay.simple.{FilterError, InvalidRequest, ReqError, UriNotMatched}
-import com.skedulo.htplay.paths._
 import com.skedulo.htplay.route.RouteGroup
 import monix.eval.Task
-import org.http4s._
-import org.scalatest.{AsyncFreeSpec, Matchers}
 import monix.execution.Scheduler.Implicits.global
 import org.http4s.Method.{DELETE, GET}
+import org.http4s._
+import org.scalatest.{AsyncFreeSpec, Matchers}
 
 class PathMatchingSpec extends AsyncFreeSpec with Matchers with SimpleRouteSpecification {
 
@@ -24,7 +21,7 @@ class PathMatchingSpec extends AsyncFreeSpec with Matchers with SimpleRouteSpeci
       DELETE / "conflict" |> (() => return409)
     )
 
-    val go = group.toHttpService(convertReqError).run
+    val go = group.toHttpService(this.errorToResponse).run
 
     (for {
       r401 <- go(Request(uri = makeUri("rejected"))).value
@@ -50,16 +47,6 @@ class PathMatchingSpec extends AsyncFreeSpec with Matchers with SimpleRouteSpeci
 
   def return409: Task[Response[Task]] = {
     Task.now(CONFLICT)
-  }
-
-  def convertReqError(err: ReqError): Task[Option[Response[Task]]] = {
-    err match {
-      case UriNotMatched => Task.now(None)
-      case InvalidRequest(msg) => {
-        Response[Task](Status.BadRequest).withBody(msg).map(Some(_))
-      }
-      case FilterError(e) => Task.now(Some(Response(Status.InternalServerError)))
-    }
   }
 
   def makeUri(str: String): Uri = {

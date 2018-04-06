@@ -46,7 +46,9 @@ object Matchers {
               convIter.foreach { conv =>
                 val convResult = conv match {
                   //TODOO: unsafe gets
-                  case QueryStringConverter(f) => f(qs).right.get
+                  case QueryStringConverter(f) => {
+                    f(qs).right.get
+                  }
                   case RequestConverter(f) => f(req.asInstanceOf[Request[Any]]).right.get
                   case StringConverter(_) => throw new Exception("not expecting StringConverter when converting things after the path variables")
                 }

@@ -1,7 +1,7 @@
 package com.skedulo.htplay.builders
 
 import com.skedulo.htplay.utils.{FromString, FromStringInstances}
-import org.http4s.Method
+import org.http4s.{Method, Response}
 import shapeless._
 
 /**
@@ -11,6 +11,7 @@ trait RouteSpecification[F[_], Err] extends FromStringInstances[Err] {
 
   def handleInvalidQueryParam(msg: String, e: Option[Throwable]): Err
   def handleMissingQueryParam(key: String): Err
+  def errorToResponse(err: Err): F[Option[Response[F]]]
 
   final override def handleFromStringError(msg: String, e: Option[Throwable]): Err = handleInvalidQueryParam(msg, e)
 
@@ -18,7 +19,7 @@ trait RouteSpecification[F[_], Err] extends FromStringInstances[Err] {
     override def handle(key: String): Err = handleMissingQueryParam(key)
   }
 
-  class Http4sMethodOps(val method: Method) {
+  final class Http4sMethodOps(val method: Method) {
 
     def /(segment: String): PathBuilder[F, Err, HNil] =
       PathBuilder[F, Err, HNil](method, matchSegments = Vector(LiteralSegment(segment)), converters = Vector.empty)
@@ -31,13 +32,25 @@ trait RouteSpecification[F[_], Err] extends FromStringInstances[Err] {
 
   implicit def toMethodOps(method: Method) = new Http4sMethodOps(method)
 
-  class StringQueryParamOps(val str: String) {
-    //TODOO: need some way to check for invalid variables
+  final class StringQueryParamOps(val str: String) {
+    //TODOO: need some way to check for invalid query string keys
     def as[T](implicit fromStr: FromString[Err, T], missing: MissingQueryParam[Err]): QueryParam[Err, T] = {
       QueryParam.single(str, fromStr.run, missing.handle)
+    }
+
+    def opt[T](implicit fromStr: FromString[Err, T]): QueryParam[Err, Option[T]] = {
+      QueryParam.optional(str, fromStr.run)
+    }
+
+    def many[T](implicit fromStr: FromString[Err, T], missing: MissingQueryParam[Err]): QueryParam[Err, List[T]] = {
+      QueryParam.many(str, fromStr.run, missing.handle)
     }
   }
 
   implicit def toStringQueryParamOps(str: String) = new StringQueryParamOps(str)
+
+  def pathVar[A](implicit fromStr: FromString[Err, A]): PathVarSegment[Err, A] = {
+    PathVarSegment(fromStr.run)
+  }
 
 }
