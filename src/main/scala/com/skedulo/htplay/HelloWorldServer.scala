@@ -1,5 +1,6 @@
 package com.skedulo.htplay
 
+/*
 import monix.eval.Task
 import cats.effect.IO
 import fs2.StreamApp
@@ -46,3 +47,4 @@ object HelloWorldServer extends StreamApp[Task] with ResponseGeneratorInstances[
       .mountService(service, "/")
       .serve
 }
+*/

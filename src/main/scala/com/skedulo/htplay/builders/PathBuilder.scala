@@ -14,7 +14,7 @@ import shapeless.ops.hlist.Prepend
 
 import scala.language.{higherKinds, implicitConversions}
 
-//TODOO: deal with encoding/decoding issues in specified paths
+//TODO: deal with encoding/decoding issues in specified paths
 case class PathBuilder[F[_], Err, Vars <: HList] private (
   override val method: Method,
   override val matchSegments: Vector[PathSegment],

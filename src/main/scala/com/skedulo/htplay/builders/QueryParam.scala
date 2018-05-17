@@ -36,7 +36,7 @@ object QueryParam {
     QueryParam(key, f)
   }
 
-  //TODOO: also add default
+  //TODO: also add default
   def optional[Err, T](key: Key, convertFn: String => Either[Err, T]): QueryParam[Err, Option[T]] ={
     val f = (strs: List[String]) => {
       strs match {

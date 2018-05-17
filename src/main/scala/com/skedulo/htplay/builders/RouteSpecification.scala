@@ -33,7 +33,7 @@ trait RouteSpecification[F[_], Err] extends FromStringInstances[Err] {
   implicit def toMethodOps(method: Method) = new Http4sMethodOps(method)
 
   final class StringQueryParamOps(val str: String) {
-    //TODOO: need some way to check for invalid query string keys
+    //TODO: need some way to check for invalid query string keys
     def as[T](implicit fromStr: FromString[Err, T], missing: MissingQueryParam[Err]): QueryParam[Err, T] = {
       QueryParam.single(str, fromStr.run, missing.handle)
     }

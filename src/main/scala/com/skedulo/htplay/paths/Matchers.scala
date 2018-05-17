@@ -35,30 +35,46 @@ object Matchers {
               // verified at least all literal segments have been matched
               val convIter = converters.iterator
               val processedValues = mut.ArrayBuffer.empty[Any]
-              // process all values we already have
-              pathInputValues.foreach { thisValue =>
-                //TODOO: unsafe parse
-                processedValues += convIter.next().asInstanceOf[AnyConverter[Err]].run(thisValue).right.get
-              }
-              // Other processors such as query strings or body parsers
-              //TODOO: assuming all the rest of the converters take a request
-              val qs = req.uri.query
-              convIter.foreach { conv =>
-                val convResult = conv match {
-                  //TODOO: unsafe gets
-                  case QueryStringConverter(f) => {
-                    f(qs).right.get
+              // Attempt to process all values we already have from path variables
+              var pathVarParseErr: Option[Err] = None
+              var jdx = 0
+              // TODO: should handle fallbacks (e.g. /mypath/{int}/ then fallback to /mypath/{string}/)
+              while (pathVarParseErr.isEmpty && jdx < pathInputValues.length) {
+                //TODO: asInstanceOf?
+                convIter.next().asInstanceOf[AnyConverter[Err]].run(pathInputValues(jdx)) match {
+                  case Right(res) => {
+                    processedValues += res
                   }
-                  case RequestConverter(f) => f(req.asInstanceOf[Request[Any]]).right.get
-                  case StringConverter(_) => throw new Exception("not expecting StringConverter when converting things after the path variables")
+                  case Left(e) => {
+                    pathVarParseErr = Some(e)
+                  }
                 }
-                processedValues += convResult
+                jdx += 1
               }
-              var res: HList = HNil
-              processedValues.reverseIterator.foreach { thisRes =>
-                res = thisRes :: res
+              pathVarParseErr match {
+                case Some(e) => Left(e)
+                case None => {
+                  // Other processors such as query strings or body parsers
+                  //TODO: assuming all the rest of the converters take a request
+                  val qs = req.uri.query
+                  convIter.foreach { conv =>
+                    val convResult = conv match {
+                      //TODO: unsafe gets
+                      case QueryStringConverter(f) => {
+                        f(qs).right.get
+                      }
+                      case RequestConverter(f) => f(req.asInstanceOf[Request[Any]]).right.get
+                      case StringConverter(_) => throw new Exception("not expecting StringConverter when converting things after the path variables")
+                    }
+                    processedValues += convResult
+                  }
+                  var res: HList = HNil
+                  processedValues.reverseIterator.foreach { thisRes =>
+                    res = thisRes :: res
+                  }
+                  Right(res.asInstanceOf[Vars])
+                }
               }
-              Right(res.asInstanceOf[Vars])
             }
             else Left(E.uriNotMatched)
           }

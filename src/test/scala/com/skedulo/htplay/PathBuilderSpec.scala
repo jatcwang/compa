@@ -208,7 +208,7 @@ class PathBuilderSpec extends AsyncFreeSpec with Matchers with Inside with Simpl
 
 }
 /*
-//TODOO:
+//TODO:
 empty
 ?a=&b=
 

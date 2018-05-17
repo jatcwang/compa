@@ -35,7 +35,7 @@ class PathMatchingSpec extends AsyncFreeSpec with Matchers with SimpleRouteSpeci
       rNotFound shouldEqual None
     }).runAsync
   }
-  //TODOO: check trailing slash
+  //TODO: check trailing slash
 
   def return401: Task[Response[Task]] = {
     Task.now(UNAUTHORIZED)

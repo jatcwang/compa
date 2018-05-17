@@ -10,7 +10,7 @@ import shapeless._
 import shapeless.ops.function.FnToProduct
 import shapeless.ops.hlist.Prepend
 
-//TODOO: make sealed or package private
+//TODO: make sealed or package private
 trait PathPartial[F[_], Err, Res <: HList] { self =>
   protected type BuilderVars <: HList
   protected val builder: SuperBuilder[F, Err, BuilderVars]

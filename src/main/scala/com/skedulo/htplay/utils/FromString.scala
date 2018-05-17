@@ -10,7 +10,7 @@ object FromString {
 }
 
 
-//TODOO: better name and/or collect all error handling overrides for better UX?
+//TODO: better name and/or collect all error handling overrides for better UX?
 trait FromStringInstances[Err] {
 
   def handleFromStringError(msg: String, e: Option[Throwable]): Err

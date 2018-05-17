@@ -52,7 +52,6 @@ trait SuperBuilder[F[_], Err, Res <: HList] { self =>
     }
   }
 
-  //TODOO: need to improve UX when Res is HList
   def processCurrent[NewRes](fx: FFF[F, Res, Err, NewRes])(implicit F: Monad[F], asHList: AsHList[NewRes]): PathPartial[F, Err, asHList.Out] = {
     new PathPartial[F, Err, asHList.Out] {
       override protected type BuilderVars = Res
@@ -61,7 +60,7 @@ trait SuperBuilder[F[_], Err, Res <: HList] { self =>
     }
   }
 
-  //TODOO: take validated inputs (e.g. can't contain "/" in each string)
+  //TODO: take validated inputs (e.g. can't contain "/" in each string)
   def prefix(segments: Vector[String]): SuperBuilder[F, Err, Res]
 
   // Binds it to a function to return a Response

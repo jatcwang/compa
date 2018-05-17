@@ -1,12 +1,7 @@
 package com.skedulo.htplay.paths
 
-import cats.Monad
-import cats.data.{EitherT, Kleisli, OptionT}
-import org.http4s.{Request, Response, Status}
-import cats.implicits._
-import monix.eval.Task
-import shapeless._
-import shapeless.ops.hlist.Prepend
+import cats.data.{EitherT, Kleisli}
+import org.http4s.{Request, Response}
 
 object Playground {
 
